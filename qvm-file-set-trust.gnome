@@ -1,0 +1,41 @@
+#!/bin/bash
+#
+# The Qubes OS Project, http://www.qubes-os.org
+#
+# Copyright (C) 2010 Andrew Morgan <andrew@amorgan.xyz>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+#
+
+# Tell bash to stop if command executed with error
+set -euo pipefail
+
+# Create a dialog box asking the user to set trust rules
+# TODO: Show file type in Zenity
+# TODO: Show file name in the title, will have to pass from python
+MARK_FILE="Always open this file in a DisposableVM" 
+MARK_FILETYPE="Always open this file type in a DisposableVM" 
+CHOICE=$(zenity --list --text "What you would like to always open in a DisposableVM?" --checklist --column "Pick" --column "Title" TRUE "$MARK_FILE" FALSE "$MARK_FILETYPE" --separator=":")
+
+if [[ $CHOICE = *"$MARK_FILE"* ]] ; then 
+    # Mark this file as untrusted
+    echo "Mark file"
+fi
+
+if [[ $CHOICE = *"$MARK_FILETYPE"* ]] ; then
+    # Mark this file type as untrusted
+    echo "Mark filetype"
+fi
