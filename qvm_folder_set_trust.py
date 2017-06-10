@@ -26,7 +26,7 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.MenuProvider):
         menu_item = Nautilus.MenuItem(name='QubesMenuProvider::FolderSetTrust',
                                       label='Always open contents in DisposableVM',
                                       tip='',
-                                      icon='checkmark')
+                                      icon='trust-checked')
 
         menu_item.connect('activate', self.on_menu_item_clicked, files)
         return menu_item,

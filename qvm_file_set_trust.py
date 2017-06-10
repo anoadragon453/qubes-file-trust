@@ -27,7 +27,7 @@ class FileSetTrustItemExtension(GObject.GObject, Nautilus.MenuProvider):
         menu_item = Nautilus.MenuItem(name='QubesMenuProvider::FileSetTrust',
                                       label='Always Open in DisposableVM...',
                                       tip='',
-                                      icon='')
+                                      icon='trust-settings')
 
         menu_item.connect('activate', self.on_menu_item_clicked, files)
         return menu_item,

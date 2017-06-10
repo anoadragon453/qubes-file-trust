@@ -1,5 +1,9 @@
 # Documentation
 
+# Requirements
+
+`attr` must be installed on the system, specifically the `getfattr` and `setfattr` binaries.
+
 ## File Manager Context Menus
 
 The context menus are defined as a python script for Nautilus

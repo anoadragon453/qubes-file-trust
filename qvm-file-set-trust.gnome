@@ -23,6 +23,35 @@
 # Tell bash to stop if command executed with error
 set -euo pipefail
 
+# File path of untrusted mime types list
+UNTR_MIME_FILE="/etc/qubes/untrusted-mime-types"
+
+# Check if the file exists, and create if not
+if [ ! -f "$UNTR_MIME_FILE" ]; then
+    touch "$UNTR_MIME_FILE"
+fi
+
+# Check if filepath was supplied
+if [ -z "$1" ]; then
+    echo "No filepath supplied"
+    exit -1
+fi
+
+# Get file mime-type
+FILEPATH_MIMETYPE=file -b --mime-type "$1"
+
+# Check if filetype is already marked as untrusted
+FILETYPE_ALREADY_UNTR=false
+if grep -q "$FILEPATH_MIMETYPE" "$UNTR_MIME_FILE"; then
+    $FILETYPE_ALREADY_UNTR=true
+fi
+
+# Check if file is already marked as untrusted
+FILE_ALREADY_UNTR=true
+if getfattr --name 'qubes.untrusted' '$1')"
+if [ -z "$1" ]; then
+
+
 # Create a dialog box asking the user to set trust rules
 # TODO: Show file type in Zenity
 # TODO: Show file name in the title, will have to pass from python
@@ -37,5 +66,5 @@ fi
 
 if [[ $CHOICE = *"$MARK_FILETYPE"* ]] ; then
     # Mark this file type as untrusted
-    echo "Mark filetype"
+
 fi
