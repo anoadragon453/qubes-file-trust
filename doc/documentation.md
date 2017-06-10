@@ -3,8 +3,8 @@
 ## File Manager Context Menus
 
 The context menus are defined as a python script for Nautilus
-(`/usr/share/nautilus-python/extensions` and a service file
-(`/usr/share/kde4/services/`) for Dolphin. Both call
+(stored in `/usr/share/nautilus-python/extensions`) and a service file
+for Dolphin (`/usr/share/kde4/services/`). Both call
 `/usr/lib/qubes/qvm-set-trust.{gnome,kde}` which actually creates the dialog
 asking the user which file trust settings should be set, as well as setting any
 emblems on the file in question.
