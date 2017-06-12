@@ -21,10 +21,10 @@
 #
 
 # Tell bash to stop if command executed with error
-set -euo pipefail
+set -exuo pipefail
 
 # File path of untrusted mime types list
-UNTR_MIME_FILE="/etc/qubes/untrusted-mime-types"
+UNTR_MIME_FILE="/home/user/untrusted-mime-types"
 
 # Check if the file exists, and create if not
 if [ ! -f "$UNTR_MIME_FILE" ]; then
@@ -38,26 +38,25 @@ if [ -z "$1" ]; then
 fi
 
 # Get file mime-type
-FILEPATH_MIMETYPE=file -b --mime-type "$1"
+FILEPATH_MIMETYPE="$(file -b --mime-type $1)"
 
 # Check if filetype is already marked as untrusted
 FILETYPE_ALREADY_UNTR=false
-if grep -q "$FILEPATH_MIMETYPE" "$UNTR_MIME_FILE"; then
-    $FILETYPE_ALREADY_UNTR=true
+if [ ! -z $(grep "$FILEPATH_MIMETYPE" "$UNTR_MIME_FILE") ]; then
+    FILETYPE_ALREADY_UNTR=true
 fi
 
 # Check if file is already marked as untrusted
 FILE_ALREADY_UNTR=true
-if getfattr --name 'qubes.untrusted' '$1')"
-if [ -z "$1" ]; then
-
+#if getfattr --name "qubes.untrusted" "$1"
+#if [ -z "$1" ]; then
 
 # Create a dialog box asking the user to set trust rules
 # TODO: Show file type in Zenity
 # TODO: Show file name in the title, will have to pass from python
 MARK_FILE="Always open this file in a DisposableVM" 
 MARK_FILETYPE="Always open this file type in a DisposableVM" 
-CHOICE=$(zenity --list --text "What you would like to always open in a DisposableVM?" --checklist --column "Pick" --column "Title" TRUE "$MARK_FILE" FALSE "$MARK_FILETYPE" --separator=":")
+CHOICE=$(zenity --list --text "What you would like to always open in a DisposableVM?" --checklist --column "Pick" --column "Title" $FILE_ALREADY_UNTR "$MARK_FILE" $FILETYPE_ALREADY_UNTR "$MARK_FILETYPE" --separator=":")
 
 if [[ $CHOICE = *"$MARK_FILE"* ]] ; then 
     # Mark this file as untrusted
@@ -66,5 +65,13 @@ fi
 
 if [[ $CHOICE = *"$MARK_FILETYPE"* ]] ; then
     # Mark this file type as untrusted
-
-fi
+    if [[ $FILETYPE_ALREADY_UNTR = false ]]; then
+        # Append new filetype to the end of the file
+        echo "$FILEPATH_MIMETYPE" >> $UNTR_MIME_FILE
+    fi
+# TODO: Else, remove from file
+else
+    # Remove shell commands from string
+    ESCAPED_MIMETYPE=$(LC_ALL=C sed -e 's/[^a-zA-Z0-9,._+@%]/\\&/g; 1{$s/^$/""/}; 1!s/^/"/; $!s/$/"/' <<< $FILEPATH_MIMETYPE)
+    sed -i /$ESCAPED_MIMETYPE/d $UNTR_MIME_FILE
+fi 
