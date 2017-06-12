@@ -47,31 +47,55 @@ if [ ! -z $(grep "$FILEPATH_MIMETYPE" "$UNTR_MIME_FILE") ]; then
 fi
 
 # Check if file is already marked as untrusted
-FILE_ALREADY_UNTR=true
-#if getfattr --name "qubes.untrusted" "$1"
-#if [ -z "$1" ]; then
+FILE_ALREADY_UNTR=false
+
+# First check if file is readable. Since we can't read files that are
+# marked as untrusted (as they are chmod'd 0, we'll just assume
+# unreadable files as untrusted
+if ! [[ -r "$1" ]]; then
+    FILE_ALREADY_UNTR=true
+elif [ ! -z getfattr --name "user.qubes.untrusted" "$1" ]; then
+    # Check the extended file attributes for our specific tag.
+    # If we find it, then it's untrusted
+    FILE_ALREADY_UNTR=true
+fi
 
 # Create a dialog box asking the user to set trust rules
-# TODO: Show file type in Zenity
-# TODO: Show file name in the title, will have to pass from python
 MARK_FILE="Always open this file in a DisposableVM" 
 MARK_FILETYPE="Always open this file type in a DisposableVM" 
-CHOICE=$(zenity --list --text "What you would like to always open in a DisposableVM?" --checklist --column "Pick" --column "Title" $FILE_ALREADY_UNTR "$MARK_FILE" $FILETYPE_ALREADY_UNTR "$MARK_FILETYPE" --separator=":")
+CHOICE=$(zenity --list --text "What you would like to do with file: ""<b>$(basename "$1")""</b>?" --checklist --column "Pick" --column "Title" $FILE_ALREADY_UNTR "$MARK_FILE" $FILETYPE_ALREADY_UNTR "$MARK_FILETYPE ($FILEPATH_MIMETYPE)" --separator=":")
 
 if [[ $CHOICE = *"$MARK_FILE"* ]] ; then 
     # Mark this file as untrusted
-    echo "Mark file"
+    if [[ $FILE_ALREADY_UNTR = false ]]; then
+        setfattr --name "user.qubes.untrusted" --value "true" "$1"
+
+        # Lock file so it can't be edited
+        chmod 0 "$1"
+    fi
+else
+    # Unlock file
+    if [[ $FILE_ALREADY_UNTR = true ]]; then
+        chmod 644 "$1"
+
+        # Remove untrusted extended file attribute
+        setfattr --remove "user.qubes.untrusted" "$1"
+    fi
 fi
 
+# If user selected to mark filetype, do so
 if [[ $CHOICE = *"$MARK_FILETYPE"* ]] ; then
-    # Mark this file type as untrusted
+    # Mark this filetype as untrusted
     if [[ $FILETYPE_ALREADY_UNTR = false ]]; then
         # Append new filetype to the end of the file
         echo "$FILEPATH_MIMETYPE" >> $UNTR_MIME_FILE
     fi
-# TODO: Else, remove from file
+
 else
-    # Remove shell commands from string
-    ESCAPED_MIMETYPE=$(LC_ALL=C sed -e 's/[^a-zA-Z0-9,._+@%]/\\&/g; 1{$s/^$/""/}; 1!s/^/"/; $!s/$/"/' <<< $FILEPATH_MIMETYPE)
-    sed -i /$ESCAPED_MIMETYPE/d $UNTR_MIME_FILE
+    # Else, remove if already marked
+    if [[ $FILETYPE_ALREADY_UNTR = true ]]; then
+        # Remove shell commands from string
+        ESCAPED_MIMETYPE=$(LC_ALL=C sed -e 's/[^a-zA-Z0-9,._+@%]/\\&/g; 1{$s/^$/""/}; 1!s/^/"/; $!s/$/"/' <<< "$FILEPATH_MIMETYPE")
+        sed -i /$ESCAPED_MIMETYPE/d $UNTR_MIME_FILE
+    fi
 fi 
