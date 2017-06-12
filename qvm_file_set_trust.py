@@ -1,13 +1,15 @@
+#!/usr/bin/env python3
 import subprocess
 
 from gi.repository import Nautilus, GObject
 
 
 class FileSetTrustItemExtension(GObject.GObject, Nautilus.MenuProvider):
-    '''Set trust level for a file or file-type.
+    '''
+    Set trust level for a file or file-type.
 
-    Uses the nautilus-python api to provide a context menu within Nautilus which
-    enables the user to select trust levels for file or file-type.
+    Uses the nautilus-python api to provide a context menu within Nautilus
+    which enables the user to select trust levels for file or file-type.
     '''
     def get_file_items(self, window, files):
         # Attaches context menu in Nautilus

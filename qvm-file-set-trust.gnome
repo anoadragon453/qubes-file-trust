@@ -37,6 +37,13 @@ if [ -z "$1" ]; then
     exit -1
 fi
 
+# First check if file is readable. If not, attempt to unlock
+FILE_WAS_LOCKED=false
+if ! [[ -r "$1" ]]; then
+    FILE_WAS_LOCKED=true
+    chmod 0644 "$1"
+fi
+
 # Get file mime-type
 FILEPATH_MIMETYPE="$(file -b --mime-type $1)"
 
@@ -49,15 +56,15 @@ fi
 # Check if file is already marked as untrusted
 FILE_ALREADY_UNTR=false
 
-# First check if file is readable. Since we can't read files that are
-# marked as untrusted (as they are chmod'd 0, we'll just assume
-# unreadable files as untrusted
-if ! [[ -r "$1" ]]; then
-    FILE_ALREADY_UNTR=true
-elif [ ! -z getfattr --name "user.qubes.untrusted" "$1" ]; then
+if [ -z getfattr --name "user.qubes.untrusted" "$1" ]; then
     # Check the extended file attributes for our specific tag.
     # If we find it, then it's untrusted
     FILE_ALREADY_UNTR=true
+fi
+
+# Relock file if it was locked
+if [[ $FILE_WAS_LOCKED = true ]]; then
+    chmod 0 "$1"
 fi
 
 # Create a dialog box asking the user to set trust rules
