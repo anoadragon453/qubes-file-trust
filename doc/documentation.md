@@ -2,16 +2,23 @@
 
 # Requirements
 
-`attr` must be installed on the system, specifically the `getfattr` and `setfattr` binaries.
+`attr` must be installed on the system, which includes the `getfattr` and
+`setfattr` binaries.
 
 ## File Manager Context Menus
 
-The context menus are defined as a python script for Nautilus
-(stored in `/usr/share/nautilus-python/extensions`) and a service file
-for Dolphin (`/usr/share/kde4/services/`). Both call
+The context menus are defined as a python script for Nautilus (stored in
+`/usr/share/nautilus-python/extensions`) and a service file for Dolphin
+(`/usr/share/kde4/services/`). Both call
 `/usr/lib/qubes/qvm-set-trust.{gnome,kde}` which actually creates the dialog
 asking the user which file trust settings should be set, as well as setting any
 emblems on the file in question.
+
+The icons for the context menus (png files) needs to be stored in
+`/usr/share/pixmaps`.
+
+Emblem support should work out of the box on Fedora VMs, and needs the
+`gvfs-bin` package installed on Debian VMs.
 
 ## File Manager Patches
 
