@@ -3,7 +3,6 @@ import subprocess
 
 from gi.repository import Nautilus, GObject
 
-
 class FileSetTrustItemExtension(GObject.GObject, Nautilus.MenuProvider):
     '''
     Set trust level for a file or file-type.
@@ -17,14 +16,15 @@ class FileSetTrustItemExtension(GObject.GObject, Nautilus.MenuProvider):
             return
 
         for file_obj in files:
-            # Do not attach context menu to anything other that a file
-            # local files only; not remote
-            #if file_obj.get_uri_scheme() != 'file':
-            #    return
+            # Local files only; not remote
+            if file_obj.get_uri_scheme() != 'file':
+                return
 
             # Only show for files
             if file_obj.is_directory():
                 return;
+
+            print('Am I file menu-running?')
 
         menu_item = Nautilus.MenuItem(name='QubesMenuProvider::FileSetTrust',
                                       label='Always Open in DisposableVM...',

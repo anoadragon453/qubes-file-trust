@@ -39,8 +39,10 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.MenuProvider):
 
         for file_obj in files:
             # Do not attach context menu to anything other than a local file
-            #if file_obj.get_uri_scheme() != 'file':
-            #    return
+            if file_obj.get_uri_scheme() != 'file':
+                return
+
+            print('Am I folder menu-running?')
 
             # Only show for folders
             if not file_obj.is_directory():
