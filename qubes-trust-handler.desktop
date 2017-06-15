@@ -1,0 +1,12 @@
+[Desktop Entry]
+Categories=
+Exec=qvm-open-in-dvm %U
+GenericName=Qubes File Trust Handler
+Comment=Passes untrusted files to qvm-open-in-dvm cli application
+Icon=qubes
+MimeType=application/x-bittorrent;
+Name=File Trust Handler
+Terminal=false
+Type=Application
+StartupNotify=false
+
