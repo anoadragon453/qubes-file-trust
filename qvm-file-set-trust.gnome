@@ -73,7 +73,7 @@ fi
 # Create a dialog box asking the user to set trust rules
 MARK_FILE="Always open this file in a DisposableVM" 
 MARK_FILETYPE="Always open this file type in a DisposableVM" 
-CHOICE=$(zenity --list --text "What you would like to do with file: ""<b>$(basename "$FILEPATH")</b>?" --checklist --column "Pick" --column "Title" $FILE_ALREADY_UNTR "$MARK_FILE" $FILETYPE_ALREADY_UNTR "$MARK_FILETYPE ($FILEPATH_MIMETYPE)" --separator=":")
+CHOICE=$(zenity --title "File Trust Management" --list --text "What you would like to do with file: ""<b>$(basename "$FILEPATH")</b>?" --checklist --column "Pick" --column "Title" $FILE_ALREADY_UNTR "$MARK_FILE" $FILETYPE_ALREADY_UNTR "$MARK_FILETYPE ($FILEPATH_MIMETYPE)" --separator=":")
 
 if [[ $CHOICE = *"$MARK_FILE"* ]] ; then 
     # Mark this file as untrusted
