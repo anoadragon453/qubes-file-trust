@@ -52,14 +52,14 @@ FILEPATH_MIMETYPE="$(file -b --mime-type "$FILEPATH")"
 
 # Check if filetype is already marked as untrusted
 FILETYPE_ALREADY_UNTR=false
-if [ ! -z $(grep "$FILEPATH_MIMETYPE" "$UNTR_MIME_FILE") ]; then
+if grep -q "$FILEPATH_MIMETYPE" "$UNTR_MIME_FILE"; then
     FILETYPE_ALREADY_UNTR=true
 fi
 
 # Check if file is already marked as untrusted
 FILE_ALREADY_UNTR=false
 
-if [ $FILE_WAS_LOCKED = true ] && [ ! $(getfattr --name "user.qubes.untrusted" "$FILEPATH" | grep -q "No Such Attribute") ]; then
+if [ $FILE_WAS_LOCKED = true ] && ! getfattr --name "user.qubes.untrusted" "$FILEPATH" | grep -q "No Such Attribute"; then
     # Check the extended file attributes for our specific tag.
     # If we find it, then it's untrusted
     FILE_ALREADY_UNTR=true
@@ -110,6 +110,6 @@ else
     if [[ $FILETYPE_ALREADY_UNTR = true ]]; then
         # Remove shell commands from string
         ESCAPED_MIMETYPE=$(LC_ALL=C sed -e 's/[^a-zA-Z0-9,._+@%]/\\&/g; 1{$s/^$/""/}; 1!s/^/"/; $!s/$/"/' <<< "$FILEPATH_MIMETYPE")
-        sed -i /$ESCAPED_MIMETYPE/d $UNTR_MIME_FILE
+        sed -i /"$ESCAPED_MIMETYPE"/d $UNTR_MIME_FILE
     fi
 fi 
