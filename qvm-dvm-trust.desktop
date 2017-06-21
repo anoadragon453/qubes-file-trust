@@ -1,6 +1,6 @@
 [Desktop Entry]
 Categories=
-Exec=qvm-open-trust-based %U
+Exec=/usr/bin/qvm-open-trust-based %U
 GenericName=DisposableVM
 Comment=Passes untrusted files to qvm-open-in-dvm cli application
 Icon=qubes
