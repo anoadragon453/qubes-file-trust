@@ -1,0 +1,223 @@
+#!/usr/bin/python3 -O
+# -*- coding: utf-8 -*-
+#
+# The Qubes OS Project, http://www.qubes-os.org
+#
+# Copyright (C) 2017 Andrew Morgan <andrew@amorgan.xyz>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+#
+
+import sys, os, argparse, xattr
+
+def error (error_string):
+    print ('Error: ' + error_string)
+
+def qprint (print_string, quiet):
+    # Will only print if '--quiet' is not set
+    if not quiet:
+        print (print_string)
+
+def check_xattr(path, orig_perms, quiet):
+    # Check for 'user.qubes.untrusted' xattr on file
+    # Expects a readable file
+    try:
+        x = xattr.get_all(path)
+
+    except:
+        error('Unable to read extended attributes of ' + path)
+        sys.exit(-2)
+
+    for attr in x:
+        # Return to original permissions
+        os.chmod (path, orig_perms)
+        
+        if b'user.qubes.untrusted' in attr:
+            # We found our attribute
+            qprint ('File is untrusted', quiet)
+            sys.exit(1)
+
+    # We didn't find our attribute
+    qprint ('File is trusted', quiet)
+    sys.exit(2)
+
+def check_file(path, quiet):
+    # Check if the given file is trusted
+
+    # Save the original permissions of the file
+    orig_perms = os.stat(path).st_mode
+
+    # See if the file is readable
+    try:
+        with open(path) as fp:
+            pass
+
+    except IOError as err:
+        try:
+            # Try to unlock file to get read access
+            os.chmod(path,0o644)
+
+        except:
+            error('Could not unlock file for reading')
+            sys.exit(-1)
+
+    # File is readable
+    # Try to get extended attribute values
+    check_xattr(path, orig_perms, quiet)
+    
+def check_folder(path, folder_loc, quiet):
+    # Check if the given folder is trusted
+
+    # Remove '/' from end of path
+    path = path[:-1]
+
+    # Check if path is in our tracking file
+    with open (folder_loc) as f:
+        for line in f:
+            if line.rstrip() == path:
+                qprint ('Folder is untrusted', quiet)
+                sys.exit(1)
+
+    qprint ('Folder is trusted', quiet)
+    sys.exit(2)
+    
+def change_file(path, trusted):
+    # Change the trust state of a file
+
+    # See if the file is readable
+    try:
+        with open(path) as fp:
+            pass
+
+    except IOError as err:
+        try:
+            # Try to unlock file to get read access
+            os.chmod(path,0o644)
+
+        except:
+            error('Could not unlock file for reading')
+            sys.exit(-1)
+
+    if trusted:
+        # Set file to trusted
+        # AKA remove our xattr
+        try:
+            xattr.removexattr(path, 'user.qubes.untrusted')
+        except:
+            pass
+
+    else:
+        # Set file to untrusted
+        # AKA add our xattr and lock
+        xattr.setxattr(path, 'user.qubes.untrusted', 'true')
+
+        os.chmod (path, 0o0)
+
+    # Add a GNOME emblem to the file
+    # gvfs-set-attribute "$FILEPATH" -t stringv metadata::emblems important
+    
+def change_folder(path, folder_loc, trusted):
+    # Change the trust state of a folder
+
+    # Remove '/' from end of path
+    path = path[:-1]
+
+    if trusted:
+        # Set folder to trusted
+        # AKA remove any mentions from tracking file
+        file = open(folder_loc,'r+')
+        lines = file.readlines()
+        file.seek(0)
+
+        # Write back all lines to the file except ones containing our path
+        for line in lines:
+            if line.rstrip() != path:
+                file.write(line)
+
+        file.truncate()
+        file.close()
+    else:
+        # Set folder to untrusted
+        # AKA add path to tracking file
+
+        # Ensure path isn't already in tracking file
+        with open (folder_loc) as f:
+            for line in f:
+                if line.rstrip() == path:
+                    # Already untrusted, just return
+                    return
+
+        # Append path to the bottom
+        file = open(folder_loc,'ab')
+        file.write(bytes(path, 'UTF-8'))
+        file.close()
+
+if __name__ == '__main__':
+    # TODO: Find a better place to put this...
+    folder_loc = '/home/user/untrusted-folder-types'
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Set or check file/folder '
+        'trust levels.')
+    parser.add_argument('paths', metavar='path', 
+        type=str, nargs='+', help='a folder or file path')
+
+    # Add arguments
+    parser.add_argument('-c', '--check', action='store_true',
+                        help='Check whether a file or folder is trusted')
+    parser.add_argument('-t', '--trusted', action='store_true',
+                        help='Set files or folders as trusted')
+    parser.add_argument('-u', '--untrusted', action='store_true',
+                        help='Set files or folders as untrusted')
+
+    parser.add_argument('-q', '--quiet', action='store_true',
+                        help='Do not print to stdout')
+    
+    args = parser.parse_args()
+
+    # Error checking
+    if args.trusted and args.untrusted:
+        error('--trusted and --untrusted'
+            ' options cannot both be set')
+    if args.check and (args.trusted or args.untrusted):
+        error('--trusted or --untrusted'
+            ' cannot be set while --is-trusted is set')
+    if not (args.check or args.trusted or args.untrusted):
+        error('You must specify an option. Use -h for help')
+
+    # Determine which action to take for each given path
+    for path in args.paths:
+        if args.check:
+            if os.path.isdir(path):
+                # Check folder
+                check_folder(path, folder_loc, args.quiet)
+            elif not os.path.isdir(path):
+                # Check file
+                check_file(path, args.quiet)
+        elif os.path.isdir(path):
+            if args.trusted:
+                # Set folder as trusted
+                change_folder(path, folder_loc, True)
+            elif args.untrusted:
+                # Set folder as untrusted
+                change_folder(path, folder_loc, False)
+        elif not os.path.isdir(path):
+            if args.trusted:
+                # Set file as trusted
+                change_file(path, True)
+            elif args.untrusted:
+                # Set file as untrusted
+                change_file(path, False)

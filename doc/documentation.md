@@ -5,6 +5,10 @@
 `attr` must be installed on the system, which includes the `getfattr` and
 `setfattr` binaries.
 
+`python3-pyxattr` is required for manipulating extended attribute values
+
+`gvfs-bin` is required for custom emblem support in Nautilus
+
 ## File Manager Context Menus
 
 The context menus are defined as a python script for Nautilus (stored in

@@ -1,10 +1,10 @@
 [Desktop Entry]
 Categories=
-Exec=qvm-open-in-dvm %U
+Exec=qvm-open-trust-based %U
 GenericName=DisposableVM
 Comment=Passes untrusted files to qvm-open-in-dvm cli application
 Icon=qubes
-MimeType=application/x-bittorrent;
+MimeType=application/octet-stream;
 Name=DisposableVM
 Terminal=false
 Type=Application
