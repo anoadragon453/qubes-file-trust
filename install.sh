@@ -10,7 +10,7 @@ sudo ln -s $PWD/qvm_trust.py /usr/share/nautilus-python/extensions/qvm_trust.py
 
 # Utilities
 sudo ln -s $PWD/qvm-open-trust-based /usr/bin/qvm-open-trust-based
-sudo ln -s $PWD/qvm-trust /usr/bin/qvm-trust
+sudo ln -s $PWD/qvm-file-trust /usr/bin/qvm-file-trust
 
 # Images
 sudo ln -s $PWD/qubes-checkmark.png /usr/share/pixmaps/qubes-checkmark.png
