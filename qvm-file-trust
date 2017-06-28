@@ -52,7 +52,7 @@ def check_xattr(path, orig_perms, quiet):
 
     # We didn't find our attribute
     qprint ('File is trusted', quiet)
-    sys.exit(2)
+    sys.exit(0)
 
 def check_file(path, quiet):
     # Check if the given file is trusted
@@ -71,7 +71,7 @@ def check_file(path, quiet):
             os.chmod(path,0o644)
 
         except:
-            error('Could not unlock file for reading')
+            error('Could not unlock ' + path + ' for reading')
             sys.exit(-1)
 
     # File is readable
@@ -92,10 +92,13 @@ def check_folder(path, folder_loc, quiet):
                 sys.exit(1)
 
     qprint ('Folder is trusted', quiet)
-    sys.exit(2)
+    sys.exit(0)
     
 def change_file(path, trusted):
     # Change the trust state of a file
+
+    # Save the original permissions of the file
+    orig_perms = os.stat(path).st_mode
 
     # See if the file is readable
     try:
@@ -106,9 +109,8 @@ def change_file(path, trusted):
         try:
             # Try to unlock file to get read access
             os.chmod(path,0o644)
-
         except:
-            error('Could not unlock file for reading')
+            error('Could not unlock ' + path + ' for reading')
             sys.exit(-1)
 
     if trusted:
@@ -117,14 +119,22 @@ def change_file(path, trusted):
         try:
             xattr.removexattr(path, 'user.qubes.untrusted')
         except:
-            pass
+            # Unable to remove our xattr, return original permissions
+            error('Unable to remove untrusted attribute')
+            os.chmod(path, orig_perms)
+            sys.exit(-2)
 
     else:
         # Set file to untrusted
         # AKA add our xattr and lock
-        xattr.setxattr(path, 'user.qubes.untrusted', 'true')
-
-        os.chmod (path, 0o0)
+        try:
+            xattr.setxattr(path, 'user.qubes.untrusted', 'true')
+            os.chmod (path, 0o0)
+        except:
+            # Unable to remove our xattr, return original permissions
+            error('Unable to set untrusted attribute')
+            os.chmod(path, orig_perms)
+            sys.exit(-2)
 
     # Add a GNOME emblem to the file
     # gvfs-set-attribute "$FILEPATH" -t stringv metadata::emblems important
@@ -165,7 +175,7 @@ def change_folder(path, folder_loc, trusted):
         file.write(bytes(path, 'UTF-8'))
         file.close()
 
-if __name__ == '__main__':
+def main():
     # TODO: Find a better place to put this...
     folder_loc = '/home/user/untrusted-folder-types'
 
@@ -192,21 +202,22 @@ if __name__ == '__main__':
     if args.trusted and args.untrusted:
         error('--trusted and --untrusted'
             ' options cannot both be set')
+        sys.exit(-3)
     if args.check and (args.trusted or args.untrusted):
         error('--trusted or --untrusted'
             ' cannot be set while --is-trusted is set')
-    if not (args.check or args.trusted or args.untrusted):
-        error('You must specify an option. Use -h for help')
+        sys.exit(-3)
 
     # Determine which action to take for each given path
     for path in args.paths:
-        if args.check:
+        if not (args.check or args.trusted or args.untrusted) \
+            or args.check:
             if os.path.isdir(path):
                 # Check folder
                 check_folder(path, folder_loc, args.quiet)
             elif not os.path.isdir(path):
                 # Check file
-                check_file(path, args.quiet)
+                check_file(path, orig_perms, args.quiet)
         elif os.path.isdir(path):
             if args.trusted:
                 # Set folder as trusted
@@ -221,3 +232,6 @@ if __name__ == '__main__':
             elif args.untrusted:
                 # Set file as untrusted
                 change_file(path, False)
+
+if __name__ == '__main__':
+    main()
