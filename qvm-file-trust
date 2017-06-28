@@ -23,15 +23,87 @@
 
 import sys, os, argparse, xattr
 
-def error (error_string):
-    print ('Error: ' + error_string)
+from os.path import expanduser
 
-def qprint (print_string, quiet):
+quiet = False
+global_folder_loc = '/etc/qubes/always-open-in-dispvm.list'
+local_folder_loc = expanduser('~') + '/.config/qubes/always-open-in-dispvm.list'
+
+def qprint(print_string):
     # Will only print if '--quiet' is not set
+    global quiet
+
     if not quiet:
         print (print_string)
 
-def check_xattr(path, orig_perms, quiet):
+def error(error_string):
+    qprint ('Error: ' + error_string)
+
+def retrieve_untrusted_folders(): 
+    # Compile the list of untrusted folder paths from
+    # /etc/qubes and ~/.config/qubes into a list 
+
+    global global_folder_loc, local_folder_loc
+
+    untrusted_paths = set()
+
+    # Start with the global list
+    try:
+        with open(global_folder_loc) as f:
+            for line in f:
+                line = line.rstrip()
+
+                # Ignore file comments
+                if not line.startswith('#'):
+                    # Remove any '/'s on the end of the path
+                    if line.endswith('/'):
+                        line = line[:-1]
+
+                    # Lines prepended with - shouldn't go in the global list
+                    # Just remove
+                    if line.startswith('-'):
+                        untrusted_paths.add(line[1:])
+                    else:
+                        untrusted_paths.add(line)
+
+    except:
+        error('Unable to open global untrusted folder description: ' + global_folder_loc)
+
+    # Then the local list
+    try:
+        explicitly_trusted_paths = set()
+
+        with open(local_folder_loc) as f:
+            for line in f:
+                line = line.rstrip()
+
+                # Ignore file comments
+                if not line.startswith('#'):
+                    # Remove any '/'s on the end of the path
+                    if line.endswith('/'):
+                        line = line[:-1]
+
+                    # Support explicitly trusting folders by prepending with -
+                    if line.startswith('-'):
+                        # Remove any mention of this path from the existing list later
+                        explicitly_trusted_paths.add(line[1:])
+                    else:
+                        untrusted_paths.add(line)
+
+        # Remove any explicity trusted paths from the list
+        filtered_untrusted_paths = set()
+        for path in untrusted_paths:
+            if not path in explicitly_trusted_paths:
+                filtered_untrusted_paths.add(path)
+
+        return filtered_untrusted_paths
+
+    except:
+        error('Unable to open local untrusted folder description: ' + local_folder_loc)
+
+    return untrusted_paths
+
+def is_untrusted_xattr(path, orig_perms):
     # Check for 'user.qubes.untrusted' xattr on file
     # Expects a readable file
     try:
@@ -43,19 +115,31 @@ def check_xattr(path, orig_perms, quiet):
 
     for attr in x:
         # Return to original permissions
-        os.chmod (path, orig_perms)
+        os.chmod(path, orig_perms)
         
         if b'user.qubes.untrusted' in attr:
             # We found our attribute
-            qprint ('File is untrusted', quiet)
-            sys.exit(1)
+            return True
 
     # We didn't find our attribute
-    qprint ('File is trusted', quiet)
-    sys.exit(0)
+    return False
 
-def check_file(path, quiet):
+def is_untrusted_path(path):
+    # Check to see if the path lies under a path that's considered untrusted
+    # Files listing untrusted paths lie in /etc/qubes/ and ~/.config/qubes
+    # under the name always-open-in-dispvm.list
+    untrusted_paths = retrieve_untrusted_folders()
+
+    for untrusted_path in untrusted_paths:
+        if path.startswith(untrusted_path):
+            return True
+
+    return False
+    
+def check_file(path):
     # Check if the given file is trusted
+
+    global global_folder_loc, local_folder_loc
 
     # Save the original permissions of the file
     orig_perms = os.stat(path).st_mode
@@ -74,25 +158,28 @@ def check_file(path, quiet):
             error('Could not unlock ' + path + ' for reading')
             sys.exit(-1)
 
-    # File is readable
-    # Try to get extended attribute values
-    check_xattr(path, orig_perms, quiet)
+    # File is readable, attempt to check trusted status
+    if is_untrusted_xattr(path, orig_perms) or \
+       is_untrusted_path(path):
+        qprint('File is untrusted')
+        sys.exit(1)
+    else:
+        qprint('File is trusted')
+        sys.exit(0)
     
-def check_folder(path, folder_loc, quiet):
+def check_folder(path):
     # Check if the given folder is trusted
 
     # Remove '/' from end of path
     path = path[:-1]
 
-    # Check if path is in our tracking file
-    with open (folder_loc) as f:
-        for line in f:
-            if line.rstrip() == path:
-                qprint ('Folder is untrusted', quiet)
-                sys.exit(1)
-
-    qprint ('Folder is trusted', quiet)
-    sys.exit(0)
+    # Check if path is in the untrusted paths list
+    if is_untrusted_path(path):
+        qprint('Folder is untrusted')
+        sys.exit(1)
+    else:
+        qprint('Folder is trusted')
+        sys.exit(0)
     
 def change_file(path, trusted):
     # Change the trust state of a file
@@ -142,13 +229,15 @@ def change_file(path, trusted):
 def change_folder(path, folder_loc, trusted):
     # Change the trust state of a folder
 
+    global local_folder_loc
+
     # Remove '/' from end of path
     path = path[:-1]
 
     if trusted:
         # Set folder to trusted
-        # AKA remove any mentions from tracking file
-        file = open(folder_loc,'r+')
+        # AKA remove any mentions from untrusted paths list
+        file = open(local_folder_loc,'r+')
         lines = file.readlines()
         file.seek(0)
 
@@ -161,24 +250,21 @@ def change_folder(path, folder_loc, trusted):
         file.close()
     else:
         # Set folder to untrusted
-        # AKA add path to tracking file
+        # AKA add path to untrusted paths list
 
-        # Ensure path isn't already in tracking file
-        with open (folder_loc) as f:
+        # Ensure path isn't already in untrusted paths list
+        with open (local_folder_loc) as f:
             for line in f:
                 if line.rstrip() == path:
                     # Already untrusted, just return
                     return
 
         # Append path to the bottom
-        file = open(folder_loc,'ab')
+        file = open(local_folder_loc,'ab')
         file.write(bytes(path, 'UTF-8'))
         file.close()
 
 def main():
-    # TODO: Find a better place to put this...
-    folder_loc = '/home/user/untrusted-folder-types'
-
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Set or check file/folder '
         'trust levels.')
@@ -198,10 +284,13 @@ def main():
     
     args = parser.parse_args()
 
+    # Set global quiet variable based on given flags
+    global quiet
+    quiet = args.quiet
+
     # Error checking
     if args.trusted and args.untrusted:
-        error('--trusted and --untrusted'
-            ' options cannot both be set')
+        error('--trusted and --untrusted options cannot both be set')
         sys.exit(-3)
     if args.check and (args.trusted or args.untrusted):
         error('--trusted or --untrusted'
@@ -214,17 +303,17 @@ def main():
             or args.check:
             if os.path.isdir(path):
                 # Check folder
-                check_folder(path, folder_loc, args.quiet)
+                check_folder(path)
             elif not os.path.isdir(path):
                 # Check file
-                check_file(path, orig_perms, args.quiet)
+                check_file(path)
         elif os.path.isdir(path):
             if args.trusted:
                 # Set folder as trusted
-                change_folder(path, folder_loc, True)
+                change_folder(path, True)
             elif args.untrusted:
                 # Set folder as untrusted
-                change_folder(path, folder_loc, False)
+                change_folder(path, False)
         elif not os.path.isdir(path):
             if args.trusted:
                 # Set file as trusted
