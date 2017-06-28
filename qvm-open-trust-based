@@ -20,20 +20,20 @@
 #
 #
 
-set -eux
+set -eu
 
 if ! [ $# = 1 ] ; then
-	echo "Usage: $0 filename"
+    echo "Usage: $(basename $0) filename"
 	exit 1
 fi
 
 # Attempt to 'unlock' file for read permissions, then
 # check for xattrs related to qubes trust settings
-ORIG_PERMISSIONS=$(stat -c "%a" "$1")
-chmod 0644 $1
+ORIG_PERMISSIONS=$(stat -c "%a" "${1}")
+chmod 0644 "${1}"
 
 # Open in disposableVM
-bash qvm-open-in-vm '$dispvm' "$1"
+bash qvm-open-in-vm '$dispvm' "${1}"
 
 # Apply original file permissions again
-chmod $ORIG_PERMISSIONS $1
+chmod $ORIG_PERMISSIONS "${1}"
