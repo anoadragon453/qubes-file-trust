@@ -28,6 +28,7 @@ from os.path import expanduser
 quiet = False
 global_folder_loc = '/etc/qubes/always-open-in-dispvm.list'
 local_folder_loc = expanduser('~') + '/.config/qubes/always-open-in-dispvm.list'
+phrase_file_loc = '/etc/qubes/always-open-in-dispvm.phrase'
 
 def qprint(print_string):
     # Will only print if '--quiet' is not set
@@ -133,6 +134,18 @@ def is_untrusted_path(path):
     for untrusted_path in untrusted_paths:
         if path.startswith(untrusted_path):
             return True
+
+    global phrase_file_loc
+    
+    # Check if untrusted phrase (/etc/qubes/always-open-in-dispvm.phrase) is
+    # present in file path
+    with open (phrase_file_loc) as f:
+        for line in f:
+            # Ignore comments
+            if not line.rstrip().startswith('#'):
+                if line.rstrip() in path:
+                    return True
+                break
 
     return False
     
@@ -299,6 +312,7 @@ def main():
 
     # Determine which action to take for each given path
     for path in args.paths:
+        path = os.path.abspath(path)
         if not (args.check or args.trusted or args.untrusted) \
             or args.check:
             if os.path.isdir(path):
