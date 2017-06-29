@@ -1,0 +1,71 @@
+.TH qvm-file-trust 1 "June 27, 2017" "version 1.0" "Generic Commands Manual"
+.SH NAME
+qvm\-file\-trust \- manage and view file or folder trust levels
+.SH SYNOPSIS
+.B qvm\-file\-trust 
+[options] path [path ..]
+.SH DESCRIPTION
+.B qvm\-file\-trust
+can check and modify the 
+.B trust level
+of files and folders. A folder is considered untrusted if its path lies in either the global untrusted folders list (/etc/qubes/always-open-in-dispvm.list) or the local list (~/.config/qubes/always-open-in-dispvm.list). 
+.PP
+A file is considered trusted unless:
+.PP
+1. It sits under an untrusted folder's path
+.PP
+2. It has a 'user.qubes.untrusted' extended file attribute
+.PP
+3. It sits in a file path that has the phrase 'untrusted' in it. This phrase can be configured in /etc/qubes/always-open-in-dispvm.phrase
+.PP
+A '-' character can be placed in front of a path in the local list to override a path listed in the local list.
+.SH OPTIONS
+.TP
+\-h|\-\-help
+Display the help text.
+.TP
+\-c|\-\-check
+Display the trust level of the file or folder. This is the default action.
+.TP
+\-u|\-\-untrusted
+Mark the file or folder as untrusted.
+.TP
+\-t|\-\-trusted
+Mark the file or folder as trusted.
+.TP
+\-q|\-\-quiet
+Execute the command silently. Useful for scripts.
+.SH EXAMPLES
+.TP
+Check the trust level of a file:
+.B qvm\-file\-trust
+[\-\-check] ./leaked-document.pdf
+.TP 
+Mark a file as untrusted:
+.B qvm\-file\-trust
+\-\-untrusted ./leaked-document.pdf
+.TP 
+Mark multiple items as trusted at once
+.B qvm\-file\-trust
+\-\-trusted ~/files/ ./recipes.txt
+.PP
+.SH ERRORS
+.TP
+0
+File or folder is 
+.B trusted
+.TP
+1
+File or folder is 
+.B untrusted
+.TP
+-1
+Unable to read an input file
+.TP
+-2
+Issue reading/setting extended file attributes
+.TP
+-3
+Improper arguments provided
+.SH AUTHOR
+Andrew Morgan (andrew at amorgan xyz)
