@@ -52,20 +52,23 @@ Mark multiple items as trusted at once
 .SH ERRORS
 .TP
 0
-File or folder is 
+No errors. File or folder is 
 .B trusted
 .TP
 1
-File or folder is 
+No errors. File or folder is 
 .B untrusted
 .TP
--1
-Unable to read an input file
+64
+Improper arguments provided
 .TP
--2
+65
 Issue reading/setting extended file attributes
 .TP
--3
-Improper arguments provided
+72
+Unable to read/parse a file, such as global or local
+.TP
+77
+Unable to unlock/chmod file for reading, no permissions
 .SH AUTHOR
 Andrew Morgan (andrew at amorgan xyz)
