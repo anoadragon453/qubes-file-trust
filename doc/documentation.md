@@ -30,10 +30,6 @@ A patch is needed for each file manager in order to allow extension execution
 upon opening of a file. The extension should be able to determine whether or not
 the file should be opened.
 
-Bug report for Dolphin patch:
-
-Bug report for Nautilus patch:
-
 ## File-watcher Daemon
 
 A C daemon will be run in each AppVM that watches and enforces file trust
