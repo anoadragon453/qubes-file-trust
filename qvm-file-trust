@@ -87,17 +87,9 @@ def retrieve_untrusted_folders():
                     # Support explicitly trusting folders by prepending with -
                     if line.startswith('-'):
                         # Remove any mention of this path from the existing list later
-                        explicitly_trusted_paths.add(line[1:])
+                        untrusted_paths.remove(line[1:])
                     else:
                         untrusted_paths.add(line)
-
-        # Remove any explicity trusted paths from the list
-        filtered_untrusted_paths = set()
-        for path in untrusted_paths:
-            if not path in explicitly_trusted_paths:
-                filtered_untrusted_paths.add(path)
-
-        return filtered_untrusted_paths
 
     except:
         error('Unable to open local untrusted folder description: ' + local_folder_loc)
@@ -184,7 +176,8 @@ def check_folder(path):
     # Check if the given folder is trusted
 
     # Remove '/' from end of path
-    path = path[:-1]
+    if path.endswith('/'):
+        path = path[:-1]
 
     # Check if path is in the untrusted paths list
     if is_untrusted_path(path):
