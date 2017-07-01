@@ -2,9 +2,6 @@
 
 # Requirements
 
-`attr` must be installed on the system, which includes the `getfattr` and
-`setfattr` binaries.
-
 `python3-pyxattr` is required for manipulating extended attribute values
 
 `gvfs-bin` is required for custom emblem support in Nautilus
@@ -18,8 +15,7 @@ The context menus are defined as a python script for Nautilus (stored in
 asking the user which file trust settings should be set, as well as setting any
 emblems on the file in question.
 
-The icons for the context menus (png files) needs to be stored in
-`/usr/share/pixmaps`.
+The icons for the context menus (png files) are stored in `/usr/share/pixmaps`.
 
 Emblem support should work out of the box on Fedora VMs, and needs the
 `gvfs-bin` package installed on Debian VMs.
@@ -40,7 +36,7 @@ as well.
 
 ## Unit tests
 
-Unit tests are included in the unit-tests folder.
+Unit tests are included in the tests folder.
 
-GUI-based unit tests are done with the
+GUI-based tests are done with the
 [Dogtail](https://gitlab.com/dogtail/dogtail) library.
