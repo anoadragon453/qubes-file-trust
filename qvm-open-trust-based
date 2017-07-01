@@ -23,17 +23,23 @@
 set -eu
 
 if ! [ $# = 1 ] ; then
-    echo "Usage: $(basename $0) filename"
+    echo "Usage: $(basename ${0}) filename"
 	exit 1
 fi
 
-# Attempt to 'unlock' file for read permissions, then
-# check for xattrs related to qubes trust settings
+# Check if this is an untrusted file
+if qvm-file-trust -q "${1}" ; then
+    echo \
+"This file is not untrusted. Please first mark it as such with qvm-file-trust."
+    exit 0
+fi
+
+# Attempt to 'unlock' file for read permissions
 ORIG_PERMISSIONS=$(stat -c "%a" "${1}")
 chmod 0644 "${1}"
 
 # Open in disposableVM
 bash qvm-open-in-vm '$dispvm' "${1}"
 
-# Apply original file permissions again
-chmod $ORIG_PERMISSIONS "${1}"
+# Mark the file as untrusted once again
+qvm-file-trust -u -q "${1}"
