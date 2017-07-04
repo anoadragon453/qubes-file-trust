@@ -22,16 +22,35 @@
 #
 
 import unittest
-import imp
+import unittest.mock
 import xattr
+import imp
 import sys
 import io
 
-qvm_file_trust = imp.load_source('qvm-file-trust', '../qvm-file-trust')
+qvm_file_trust = imp.load_source('qvm-file-trust', 'qvm-file-trust')
 
-#class TC_00_trust(unittest.TestCase):
-#    def test_000_retri(self):
-#        self.assertEqual(fun(3), 4)
+class TC_00_trust(unittest.TestCase):
+
+    @unittest.mock.patch('qvm-file-trust.open', 
+            new_callable=unittest.mock.mock_open())
+    def test_000_retrieve_override(self, list_mock):
+        """Create a mock global and local list and check resulting rules.
+        
+        Are global rules are properly overridden by '-' prepended local rules?
+        """
+
+        handlers = (unittest.mock.mock_open(
+                        read_data="/home/user/Downloads\n/home/user/QubesIncoming"
+                        ).return_value,
+                        unittest.mock.mock_open(
+                        read_data="/home/user/Downloads\n-/home/user/QubesIncoming"
+                        ).return_value)
+        list_mock.side_effect = handlers
+
+        untrusted_folder_paths = qvm_file_trust.retrieve_untrusted_folders()
+
+        self.assertEqual(untrusted_folder_paths, {'/home/user/Downloads'})
 
 class TC_10_misc(unittest.TestCase):
     def test_000_quiet(self):
@@ -51,7 +70,7 @@ class TC_10_misc(unittest.TestCase):
         self.assertEqual(captured_obj.getvalue(), 'Test string!\n')
 
     def test_010_error(self):
-        """Ensure errors are reported properly."""
+        """Ensure errors are formatted properly."""
         qvm_file_trust.OUTPUT_QUIET = False
         captured_obj = io.StringIO()
         sys.stdout = captured_obj
