@@ -37,7 +37,7 @@ class TC_00_trust(unittest.TestCase):
     def test_000_retrieve_override(self, list_mock):
         """Create a mock global and local list and check resulting rules.
         
-        Are global rules are properly overridden by '-' prepended local rules?
+        Check global rules are properly overridden by '-' prepended local rules
         """
 
         handlers = (unittest.mock.mock_open(
@@ -48,9 +48,12 @@ class TC_00_trust(unittest.TestCase):
                         ).return_value)
         list_mock.side_effect = handlers
 
-        untrusted_folder_paths = qvm_file_trust.retrieve_untrusted_folders()
+        untrusted_folder_paths = set()
 
-        self.assertEqual(untrusted_folder_paths, {'/home/user/Downloads'})
+        try:
+            untrusted_folder_paths = qvm_file_trust.retrieve_untrusted_folders()
+        finally:
+            self.assertEqual(untrusted_folder_paths, {'/home/user/Downloads'})
 
 class TC_10_misc(unittest.TestCase):
     def test_000_quiet(self):
@@ -58,32 +61,40 @@ class TC_10_misc(unittest.TestCase):
         qvm_file_trust.OUTPUT_QUIET = True
         captured_obj = io.StringIO()
         sys.stdout = captured_obj
-        qvm_file_trust.qprint('Test string!')
-        sys.stdout = sys.__stdout__
-        self.assertEqual(captured_obj.getvalue(), '')
+        try:
+            qvm_file_trust.qprint('Test string!')
+            sys.stdout = sys.__stdout__
+        finally:
+            self.assertEqual(captured_obj.getvalue(), '')
 
         qvm_file_trust.OUTPUT_QUIET = False
         captured_obj = io.StringIO()
         sys.stdout = captured_obj
-        qvm_file_trust.qprint('Test string!')
-        sys.stdout = sys.__stdout__
-        self.assertEqual(captured_obj.getvalue(), 'Test string!\n')
+        try:
+            qvm_file_trust.qprint('Test string!')
+            sys.stdout = sys.__stdout__
+        finally:
+            self.assertEqual(captured_obj.getvalue(), 'Test string!\n')
 
     def test_010_error(self):
         """Ensure errors are formatted properly."""
         qvm_file_trust.OUTPUT_QUIET = False
         captured_obj = io.StringIO()
         sys.stdout = captured_obj
-        qvm_file_trust.error('Test string!')
-        sys.stdout = sys.__stdout__
-        self.assertEqual(captured_obj.getvalue(), 'Error: Test string!\n')
+        try:
+            qvm_file_trust.error('Test string!')
+            sys.stdout = sys.__stdout__
+        finally:
+            self.assertEqual(captured_obj.getvalue(), 'Error: Test string!\n')
 
         qvm_file_trust.OUTPUT_QUIET = True
         captured_obj = io.StringIO()
         sys.stdout = captured_obj
-        qvm_file_trust.error('Test string!')
-        sys.stdout = sys.__stdout__
-        self.assertEqual(captured_obj.getvalue(), '')
+        try:
+            qvm_file_trust.error('Test string!')
+            sys.stdout = sys.__stdout__
+        finally:
+            self.assertEqual(captured_obj.getvalue(), '')
 
 
 def list_tests():
