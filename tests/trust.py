@@ -100,6 +100,29 @@ class TC_00_trust(unittest.TestCase):
                     [w.replace('/home/user', user_home) for w in
                     ['/home/user/Downloads']])
 
+    def test_010_check_read_attribute_success(self):
+        """Check whether our untrusted attribute is successfully found"""
+        xattr.get_all = unittest.mock.MagicMock(
+                return_value=['user.qubes.untrusted', 'user.something.else'])
+        os.chmod = unittest.mock.MagicMock()
+
+        test_result = False
+        try:
+            test_result = qvm_file_trust.is_untrusted_xattr('', '777') 
+        finally:
+            self.assertTrue(test_result)
+
+    def test_011_check_read_attribute_failure(self):
+        """Check whether we support not finding our attribute"""
+        xattr.get_all = unittest.mock.MagicMock(
+                return_value=['user.bla.something', 'user.something.else'])
+        os.chmod = unittest.mock.MagicMock()
+
+        test_result = False
+        try:
+            test_result = qvm_file_trust.is_untrusted_xattr('', '777') 
+        finally:
+            self.assertFalse(test_result)
 
 class TC_10_misc(unittest.TestCase):
     def test_000_quiet(self):
@@ -141,7 +164,6 @@ class TC_10_misc(unittest.TestCase):
             sys.stdout = sys.__stdout__
         finally:
             self.assertEqual(captured_obj.getvalue(), '')
-
 
 def list_tests():
     return (

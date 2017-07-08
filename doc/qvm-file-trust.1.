@@ -69,6 +69,6 @@ Issue reading/setting extended file attributes
 Unable to read/parse a file, such as global or local
 .TP
 77
-Unable to unlock/chmod file for reading, no permissions
+Unable to unlock/chmod file, or no permissions
 .SH AUTHOR
 Andrew Morgan (andrew at amorgan xyz)

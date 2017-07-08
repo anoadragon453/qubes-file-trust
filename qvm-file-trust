@@ -115,16 +115,21 @@ def is_untrusted_xattr(path, orig_perms):
         file_xattrs = xattr.get_all(path)
 
     except:
-        error('Unable to read extended attributes of ' + path)
+        error('Unable to read extended attributes of {}'.format(path))
         sys.exit(65)
 
+    # Check for our custom qubes attribute
     for attr in file_xattrs:
-        # Return to original permissions
-        os.chmod(path, orig_perms)
-
-        if b'user.qubes.untrusted' in attr:
+        if 'user.qubes.untrusted' in attr:
             # We found our attribute
             return True
+
+    # Return to original permissions
+    try:
+        os.chmod(path, orig_perms)
+    except:
+        error('Unable to set original permissions of {}'.format(path))
+        sys.exit(77)
 
     # We didn't find our attribute
     return False
