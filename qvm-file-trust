@@ -27,13 +27,11 @@ trust levels."""
 import sys
 import argparse
 import os
-from os.path import expanduser
-
 import xattr
 
 OUTPUT_QUIET = False
 GLOBAL_FOLDER_LOC = '/etc/qubes/always-open-in-dispvm.list'
-LOCAL_FOLDER_LOC = expanduser('~') + '/.config/qubes/always-open-in-dispvm.list'
+LOCAL_FOLDER_LOC = os.path.expanduser('~') + '/.config/qubes/always-open-in-dispvm.list'
 PHRASE_FILE_LOC = '/etc/qubes/always-open-in-dispvm.phrase'
 
 def qprint(print_string):
@@ -68,12 +66,17 @@ def retrieve_untrusted_folders():
                     # Lines prepended with - shouldn't go in the global list
                     # Just remove
                     if line.startswith('-'):
-                        untrusted_paths.add(line[1:])
+                        # Expand any ~'s in paths to /home/<current user>/
+                        # before adding
+                        expanded_path = os.path.expanduser(line[1:])
+                        untrusted_paths.append(expanded_path)
                     else:
-                        untrusted_paths.add(line)
+                        expanded_path = os.path.expanduser(line)
+                        untrusted_paths.add(expanded_path)
 
     except:
-        error('Unable to open global untrusted folder description: ' + GLOBAL_FOLDER_LOC)
+        error('Unable to open global untrusted folder description: {}'.
+                format(GLOBAL_FOLDER_LOC))
 
     # Then the local list
     try:
@@ -89,15 +92,19 @@ def retrieve_untrusted_folders():
 
                     # Support explicitly trusting folders by prepending with -
                     if line.startswith('-'):
-                        # Remove any mention of this path from the existing list later
-                        untrusted_paths.remove(line[1:])
+                        # Remove any mention of this path from the existing 
+                        # list later
+                        expanded_path = os.path.expanduser(line[1:])
+                        untrusted_paths.remove(expanded_path)
                     else:
-                        untrusted_paths.add(line)
+                        expanded_path = os.path.expanduser(line)
+                        untrusted_paths.add(expanded_path)
 
     except:
-        error('Unable to open local untrusted folder description: ' + LOCAL_FOLDER_LOC)
+        error('Unable to open local untrusted folder description: {}'.
+                format(LOCAL_FOLDER_LOC))
 
-    return untrusted_paths
+    return list(untrusted_paths)
 
 def is_untrusted_xattr(path, orig_perms):
     """Check for 'user.qubes.untrusted' xattr on the file.

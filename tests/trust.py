@@ -32,28 +32,52 @@ qvm_file_trust = imp.load_source('qvm-file-trust', 'qvm-file-trust')
 
 class TC_00_trust(unittest.TestCase):
 
+    '''
     @unittest.mock.patch('qvm-file-trust.open', 
             new_callable=unittest.mock.mock_open())
-    def test_000_retrieve_override(self, list_mock):
+    def test_000_retrieve_folders(self, list_mock):
+        """Create a mock global and local list and check resulting rules.
+        
+        Ensure all injected rules are accounted for
+        """
+
+        handlers = (unittest.mock.mock_open(
+                        read_data='/home/user/Downloads'
+'\n/home/user/QubesIncoming'
+                        ).return_value,
+                        unittest.mock.mock_open(
+                        read_data='/home/user/Downloads'
+'\n-/home/user/QubesIncoming'
+        list_mock.side_effect = handlers
+    '''
+
+    @unittest.mock.patch('qvm-file-trust.open', 
+            new_callable=unittest.mock.mock_open())
+    def test_001_retrieve_folders_override(self, list_mock):
         """Create a mock global and local list and check resulting rules.
         
         Check global rules are properly overridden by '-' prepended local rules
         """
 
         handlers = (unittest.mock.mock_open(
-                        read_data="/home/user/Downloads\n/home/user/QubesIncoming"
+                        read_data='~/Downloads'
+'\n~/QubesIncoming'
                         ).return_value,
                         unittest.mock.mock_open(
-                        read_data="/home/user/Downloads\n-/home/user/QubesIncoming"
+                        read_data='/home/user/Downloads'
+'\n-/home/user/QubesIncoming'
+                        #read_data='/home/user/Downloads'
+#'\n-/home/user/QubesIncoming'
                         ).return_value)
         list_mock.side_effect = handlers
 
-        untrusted_folder_paths = set()
+        untrusted_folder_paths = []
 
         try:
             untrusted_folder_paths = qvm_file_trust.retrieve_untrusted_folders()
         finally:
-            self.assertEqual(untrusted_folder_paths, {'/home/user/Downloads'})
+            self.assertEqual(untrusted_folder_paths, ['/home/user/Downloads'])
+
 
 class TC_10_misc(unittest.TestCase):
     def test_000_quiet(self):
