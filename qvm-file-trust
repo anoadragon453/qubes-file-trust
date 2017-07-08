@@ -41,7 +41,7 @@ def qprint(print_string):
 
 def error(error_string):
     """Print a string prepended with an error phrase.'"""
-    qprint('Error: ' + error_string)
+    qprint('Error: {}'.format(error_string))
 
 def retrieve_untrusted_folders():
     """Compile the list of untrusted folder paths from the following files:

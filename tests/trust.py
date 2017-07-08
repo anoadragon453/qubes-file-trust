@@ -23,16 +23,18 @@
 
 import unittest
 import unittest.mock
+import getpass
 import xattr
 import imp
 import sys
 import io
+import os
 
 qvm_file_trust = imp.load_source('qvm-file-trust', 'qvm-file-trust')
+user_home = os.path.expanduser('~')
 
 class TC_00_trust(unittest.TestCase):
 
-    '''
     @unittest.mock.patch('qvm-file-trust.open', 
             new_callable=unittest.mock.mock_open())
     def test_000_retrieve_folders(self, list_mock):
@@ -43,13 +45,33 @@ class TC_00_trust(unittest.TestCase):
 
         handlers = (unittest.mock.mock_open(
                         read_data='/home/user/Downloads'
-'\n/home/user/QubesIncoming'
+'\n/home/user/QubesIncoming'.replace('/home/user', user_home)
                         ).return_value,
                         unittest.mock.mock_open(
                         read_data='/home/user/Downloads'
-'\n-/home/user/QubesIncoming'
+'\n/home/user/QubesIncoming'
+'\n/home/user/Pictures'
+'\n/var/log/'
+'\n/etc/'
+'\n~/terrible files'
+'\n~/my way too long path name with spaces'.replace('/home/user', user_home)
+                        ).return_value)
         list_mock.side_effect = handlers
-    '''
+
+        untrusted_folder_paths = []
+
+        try:
+            untrusted_folder_paths = qvm_file_trust.retrieve_untrusted_folders()
+        finally:
+            # Order not garunteed, therefore assert with assertCountEqual
+            # Despite the name, it does check for the same elements in each
+            # list, not just the amount of elements
+            self.assertCountEqual(untrusted_folder_paths, 
+                    [w.replace('/home/user', user_home) for w in 
+                    ['/home/user/Downloads', '/home/user/QubesIncoming', 
+                    '/home/user/Pictures', '/var/log', '/etc', 
+                    '/home/user/terrible files',
+                    '/home/user/my way too long path name with spaces']])
 
     @unittest.mock.patch('qvm-file-trust.open', 
             new_callable=unittest.mock.mock_open())
@@ -65,9 +87,7 @@ class TC_00_trust(unittest.TestCase):
                         ).return_value,
                         unittest.mock.mock_open(
                         read_data='/home/user/Downloads'
-'\n-/home/user/QubesIncoming'
-                        #read_data='/home/user/Downloads'
-#'\n-/home/user/QubesIncoming'
+'\n-/home/user/QubesIncoming'.replace('/home/user', user_home)
                         ).return_value)
         list_mock.side_effect = handlers
 
@@ -76,7 +96,9 @@ class TC_00_trust(unittest.TestCase):
         try:
             untrusted_folder_paths = qvm_file_trust.retrieve_untrusted_folders()
         finally:
-            self.assertEqual(untrusted_folder_paths, ['/home/user/Downloads'])
+            self.assertCountEqual(untrusted_folder_paths, 
+                    [w.replace('/home/user', user_home) for w in
+                    ['/home/user/Downloads']])
 
 
 class TC_10_misc(unittest.TestCase):
