@@ -140,6 +140,7 @@ def is_untrusted_path(path):
     Files listing untrusted paths lie in /etc/qubes/ and ~/.config/qubes
     under the name always-open-in-dispvm.list
     """
+
     untrusted_paths = retrieve_untrusted_folders()
 
     for untrusted_path in untrusted_paths:
@@ -149,11 +150,13 @@ def is_untrusted_path(path):
     # Check if untrusted phrase (/etc/qubes/always-open-in-dispvm.phrase) is
     # present in file path
     with open(PHRASE_FILE_LOC) as phrase_file:
-        for line in phrase_file:
+        for line in phrase_file.readlines():
             # Ignore comments
             if not line.rstrip().startswith('#'):
                 if line.rstrip().upper() in path.upper():
                     return True
+
+                # Only check for first non-comment in file
                 break
 
     return False
@@ -315,6 +318,7 @@ def main():
 
     # Determine which action to take for each given path
     for path in args.paths:
+        path = os.path.expanduser(path)
         path = os.path.abspath(path)
         if not (args.check or args.trusted or args.untrusted) \
             or args.check:

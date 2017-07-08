@@ -124,6 +124,111 @@ class TC_00_trust(unittest.TestCase):
         finally:
             self.assertFalse(test_result)
 
+    @unittest.mock.patch('qvm-file-trust.open', 
+            new_callable=unittest.mock.mock_open())
+    def test_020_check_untrusted_path_path_based(self, list_mock):
+        """Check if a path is untrusted based on untrusted folders lists"""
+        handlers = (unittest.mock.mock_open(
+                        read_data='~/Downloads'
+'\n~/QubesIncoming'
+                        ).return_value,
+                        unittest.mock.mock_open(
+                        read_data='~/Downloads'
+'\n~/QubesIncoming'
+                        ).return_value,
+                        unittest.mock.mock_open(
+                        read_data='~/Downloads'
+'\n~/QubesIncoming'
+                        ).return_value,
+                        unittest.mock.mock_open(
+                        read_data='~/Downloads'
+'\n~/QubesIncoming'
+                        ).return_value,
+                        unittest.mock.mock_open(
+                        read_data='.untrusted'
+                        ).return_value)
+        list_mock.side_effect = handlers
+
+        test_result = False
+
+        try:
+            # This method expects os.path.expanduser to have already been run
+            test_result = qvm_file_trust.is_untrusted_path(
+                    user_home + '/Downloads')
+        finally:
+            self.assertTrue(test_result)
+
+        test_result = True
+        try:
+            test_result = qvm_file_trust.is_untrusted_path(
+                    user_home + '/Trusted Folder')
+        finally:
+            self.assertFalse(test_result)
+
+    @unittest.mock.patch('qvm-file-trust.open', 
+            new_callable=unittest.mock.mock_open())
+    def test_021_check_untrusted_path_phrase_based(self, list_mock):
+        """Check if path is untrusted based on untrusted phrase"""
+        handlers = (unittest.mock.mock_open(
+                        read_data='~/Downloads'
+'\n~/QubesIncoming'
+                        ).return_value,
+                        unittest.mock.mock_open(
+                        read_data='~/Downloads'
+'\n~/QubesIncoming'
+                        ).return_value,
+                        unittest.mock.mock_open(
+                        read_data='.untrusted'
+                        ).return_value,
+                        unittest.mock.mock_open(
+                        read_data='~/Downloads'
+'\n~/QubesIncoming'
+                        ).return_value,
+                        unittest.mock.mock_open(
+                        read_data='~/Downloads'
+'\n~/QubesIncoming'
+                        ).return_value,
+                        unittest.mock.mock_open(
+                        read_data='.untrusted'
+                        ).return_value,
+                        unittest.mock.mock_open(
+                        read_data='~/Downloads'
+'\n~/QubesIncoming'
+                        ).return_value,
+                        unittest.mock.mock_open(
+                        read_data='~/Downloads'
+'\n~/QubesIncoming'
+                        ).return_value,
+                        unittest.mock.mock_open(
+                        read_data='.untrusted'
+                        ).return_value)
+        list_mock.side_effect = handlers
+
+        test_result = False
+
+        try:
+            # Check if '.untrusted' in filepath
+            test_result = qvm_file_trust.is_untrusted_path(
+                    '/path/to/.untrusted/folder')
+        finally:
+            self.assertTrue(test_result)
+
+        test_result = True
+        try:
+            test_result = qvm_file_trust.is_untrusted_path(
+                    user_home + '/Trusted_Folder')
+        finally:
+            self.assertFalse(test_result)
+
+        # Check that phrase is case insensitive
+        test_result = False 
+        try:
+            # Check if '.untrusted' in filepath
+            test_result = qvm_file_trust.is_untrusted_path(
+                    '/path/to/.uNtrUsTeD/folder')
+        finally:
+            self.assertTrue(test_result)
+
 class TC_10_misc(unittest.TestCase):
     def test_000_quiet(self):
         """Make sure we're not printing when we shouldn't be."""
