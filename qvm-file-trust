@@ -56,7 +56,7 @@ def retrieve_untrusted_folders():
     # Start with the global list
     try:
         with open(GLOBAL_FOLDER_LOC) as global_list:
-            for line in global_list:
+            for line in global_list.readlines():
                 line = line.rstrip()
 
                 # Ignore file comments
@@ -78,7 +78,7 @@ def retrieve_untrusted_folders():
     # Then the local list
     try:
         with open(LOCAL_FOLDER_LOC) as local_list:
-            for line in local_list:
+            for line in local_list.readlines():
                 line = line.rstrip()
 
                 # Ignore file comments
