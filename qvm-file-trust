@@ -229,8 +229,12 @@ def change_file(path, trusted):
         except:
             # Unable to remove our xattr, return original permissions
             error('Unable to remove untrusted attribute')
-            os.chmod(path, orig_perms)
-            sys.exit(65)
+            try:
+                os.chmod(path, orig_perms)
+            except:
+                error('Unable to set original file after error')
+            finally:
+                sys.exit(65)
 
     else:
         # Set file to untrusted
@@ -241,10 +245,15 @@ def change_file(path, trusted):
         except:
             # Unable to remove our xattr, return original permissions
             error('Unable to set untrusted attribute')
-            os.chmod(path, orig_perms)
-            sys.exit(65)
+            try:
+                os.chmod(path, orig_perms)
+            except:
+                error('Unable to set original file after error')
+            finally:
+                sys.exit(65)
 
     # Add a GNOME emblem to the file
+    # Subprocess:
     # gvfs-set-attribute "$FILEPATH" -t stringv metadata::emblems important
 
 def change_folder(path, trusted):

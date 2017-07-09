@@ -128,24 +128,23 @@ class TC_00_trust(unittest.TestCase):
             new_callable=unittest.mock.mock_open())
     def test_020_check_untrusted_path_path_based(self, list_mock):
         """Check if a path is untrusted based on untrusted folders lists"""
+        dummy_untrusted_phrase = '.untrusted'
+        dummy_file_data = '~/Downloads/\n~/QubesIncoming'
+
         handlers = (unittest.mock.mock_open(
-                        read_data='~/Downloads'
-'\n~/QubesIncoming'
+                        read_data=dummy_file_data
                         ).return_value,
                         unittest.mock.mock_open(
-                        read_data='~/Downloads'
-'\n~/QubesIncoming'
+                        read_data=dummy_file_data
                         ).return_value,
                         unittest.mock.mock_open(
-                        read_data='~/Downloads'
-'\n~/QubesIncoming'
+                        read_data=dummy_file_data
                         ).return_value,
                         unittest.mock.mock_open(
-                        read_data='~/Downloads'
-'\n~/QubesIncoming'
+                        read_data=dummy_file_data
                         ).return_value,
                         unittest.mock.mock_open(
-                        read_data='.untrusted'
+                        read_data=dummy_untrusted_phrase
                         ).return_value)
         list_mock.side_effect = handlers
 
@@ -169,38 +168,35 @@ class TC_00_trust(unittest.TestCase):
             new_callable=unittest.mock.mock_open())
     def test_021_check_untrusted_path_phrase_based(self, list_mock):
         """Check if path is untrusted based on untrusted phrase"""
+        dummy_untrusted_phrase = '.untrusted'
+        dummy_file_data = '~/Downloads\n~/QubesIncoming'
+
         handlers = (unittest.mock.mock_open(
-                        read_data='~/Downloads'
-'\n~/QubesIncoming'
+                        read_data=dummy_file_data
                         ).return_value,
                         unittest.mock.mock_open(
-                        read_data='~/Downloads'
-'\n~/QubesIncoming'
+                        read_data=dummy_file_data
                         ).return_value,
                         unittest.mock.mock_open(
-                        read_data='.untrusted'
+                        read_data=dummy_untrusted_phrase
                         ).return_value,
                         unittest.mock.mock_open(
-                        read_data='~/Downloads'
-'\n~/QubesIncoming'
+                        read_data=dummy_file_data
                         ).return_value,
                         unittest.mock.mock_open(
-                        read_data='~/Downloads'
-'\n~/QubesIncoming'
+                        read_data=dummy_file_data
                         ).return_value,
                         unittest.mock.mock_open(
-                        read_data='.untrusted'
+                        read_data=dummy_untrusted_phrase
                         ).return_value,
                         unittest.mock.mock_open(
-                        read_data='~/Downloads'
-'\n~/QubesIncoming'
+                        read_data=dummy_file_data
                         ).return_value,
                         unittest.mock.mock_open(
-                        read_data='~/Downloads'
-'\n~/QubesIncoming'
+                        read_data=dummy_file_data
                         ).return_value,
                         unittest.mock.mock_open(
-                        read_data='.untrusted'
+                        read_data=dummy_untrusted_phrase
                         ).return_value)
         list_mock.side_effect = handlers
 
@@ -228,6 +224,46 @@ class TC_00_trust(unittest.TestCase):
                     '/path/to/.uNtrUsTeD/folder')
         finally:
             self.assertTrue(test_result)
+
+    def test_030_check_exits_properly_on_bad_chmod(self):
+        """Ensure script exits with proper return code on chmod failure"""
+        def failing_chmod():
+            # This is our failing os.chmod replacement
+            raise Exception
+
+        os.chmod = failing_chmod
+
+        # Dummy data
+        os.stat = unittest.mock.Mock()
+        os.stat.st_mode = 0
+
+        # When an exception is raised, make sure it is exit code 77
+        # i.e., chmod issue
+        with self.assertRaises(SystemExit) as cm:
+            qvm_file_trust.OUTPUT_QUIET = True
+            qvm_file_trust.change_file('', True)
+
+            self.assertEqual(cm.exception.code, 77)
+
+    def test_031_xattr_called_when_setting_file_trust(self):
+        """Ensure our attribute is added/removed when setting file trust"""
+        os.chmod = unittest.mock.MagicMock()
+
+        # Dummy data
+        os.stat = unittest.mock.Mock()
+        os.stat.st_mode = 0
+
+        xattr.removexattr = unittest.mock.MagicMock()
+        qvm_file_trust.change_file('do_trust_me', True)
+
+        xattr.removexattr.assert_called_once_with('do_trust_me',
+                'user.qubes.untrusted')
+
+        xattr.setxattr = unittest.mock.MagicMock()
+        qvm_file_trust.change_file('dont_trust_me', False)
+
+        xattr.setxattr.assert_called_once_with('dont_trust_me',
+                'user.qubes.untrusted', 'true')
 
 class TC_10_misc(unittest.TestCase):
     def test_000_quiet(self):
