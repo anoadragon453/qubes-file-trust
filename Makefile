@@ -18,5 +18,5 @@ install:
 	install -m 0644 qubes.png $(DESTDIR)/usr/share/pixmaps/qubes.png
 
 	# Untrusted folders list
-	mkdir -p $HOME/.config/qubes
-	touch $HOME/.config/qubes/always-open-in-dispvm.list
+	mkdir -p $(HOME)/.config/qubes
+	touch $(HOME)/.config/qubes/always-open-in-dispvm.list
