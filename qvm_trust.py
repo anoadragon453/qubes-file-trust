@@ -55,7 +55,7 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.MenuProvider):
             file_path = file_obj.get_location().get_path()
 
             # Check if any of the items set as trusted
-            proc = subproces.Popen(['/usr/bin/qvm-trust', '-cq', file_path],
+            proc = subprocess.Popen(['/usr/bin/qvm-file-trust', '-cq', file_path],
                     stdout=subprocess.PIPE)
             subprocess.Popen.wait(proc)
 
@@ -101,7 +101,7 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.MenuProvider):
             file_paths.append(file_path)
 
             # Check if any of the items set as trusted
-            proc = subprocess.Popen(['/usr/bin/qvm-trust', '-cq', file_path],
+            proc = subprocess.Popen(['/usr/bin/qvm-file-trust', '-cq', file_path],
                     stdout=subprocess.PIPE)
             subprocess.Popen.wait(proc)
 
@@ -112,7 +112,7 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.MenuProvider):
         # Check if the folder are trusted
         if all_items_are_untrusted:
             # Mark all selected as trusted
-            subprocess.Popen(['/usr/bin/qvm-trust', '-t'] + file_paths)
+            subprocess.Popen(['/usr/bin/qvm-file-trust', '-t'] + file_paths)
         else:
             # Mark all selected as untrusted
-            subprocess.Popen(['/usr/bin/qvm-trust', '-u'] + file_paths)
+            subprocess.Popen(['/usr/bin/qvm-file-trust', '-u'] + file_paths)
