@@ -265,6 +265,14 @@ class TC_00_trust(unittest.TestCase):
         xattr.setxattr.assert_called_once_with('dont_trust_me',
                 'user.qubes.untrusted', 'true')
 
+    '''
+    # TODO: Do some tests based on command line arguments and that correct
+    # qvm-file-trust methods are called based on the arguments
+    def test_040_parse_args(self):
+        """Check to make sure correct methods are called given arguments"""
+    '''
+
+
 class TC_10_misc(unittest.TestCase):
     def test_000_quiet(self):
         """Make sure we're not printing when we shouldn't be."""

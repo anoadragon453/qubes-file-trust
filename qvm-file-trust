@@ -264,7 +264,13 @@ def change_folder(path, trusted):
     if trusted:
         # Set folder to trusted
         # AKA remove any mentions from untrusted paths list
-        file = open(LOCAL_FOLDER_LOC, 'r+')
+        try:
+            file = open(LOCAL_FOLDER_LOC, 'r+')
+        except:
+            error('Unable to read local untrusted folder: {}'.
+                    format(LOCAL_FOLDER_LOC))
+            sys.exit(72)
+
         lines = file.readlines()
         file.seek(0)
 
@@ -280,11 +286,16 @@ def change_folder(path, trusted):
         # AKA add path to untrusted paths list
 
         # Ensure path isn't already in untrusted paths list
-        with open(LOCAL_FOLDER_LOC) as local_list:
-            for line in local_list:
-                if line.rstrip() == path:
-                    # Already untrusted, just return
-                    return
+        try:
+            with open(LOCAL_FOLDER_LOC) as local_list:
+                for line in local_list:
+                    if line.rstrip() == path:
+                        # Already untrusted, just return
+                        return
+        except:
+            error('Unable to read local untrusted folder: {}'.
+                    format(LOCAL_FOLDER_LOC))
+            sys.exit(72)
 
         # Append path to the bottom
         file = open(LOCAL_FOLDER_LOC, 'ab')
