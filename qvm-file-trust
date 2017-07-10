@@ -119,10 +119,10 @@ def is_untrusted_xattr(path, orig_perms):
         sys.exit(65)
 
     # Check for our custom qubes attribute
-    for attr in file_xattrs:
-        if 'user.qubes.untrusted' in attr:
-            # We found our attribute
-            return True
+    untrusted_attribute = (b'user.qubes.untrusted', b'true')
+    if untrusted_attribute in file_xattrs:
+        # We found our attribute
+        return True
 
     # Return to original permissions
     try:
