@@ -1,8 +1,8 @@
-CC = gcc
-OPT = -Werror
+CC = g++
+OPT = -Werror -std=c++11
 
 compile:
-	$(CC) $(OPT) -o qubes-trust-daemon qubes-trust-daemon.c
+	$(CC) $(OPT) -o qubes-trust-daemon qubes-trust-daemon.cpp
 
 install:
 	# Generic file handler for untrusted files

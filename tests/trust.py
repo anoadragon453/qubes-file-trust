@@ -245,6 +245,7 @@ class TC_00_trust(unittest.TestCase):
 
             self.assertEqual(cm.exception.code, 77)
 
+    # TODO: Check xattr.setxattr actually works...
     def test_031_xattr_called_when_setting_file_trust(self):
         """Ensure our attribute is added/removed when setting file trust"""
         os.chmod = unittest.mock.MagicMock()
