@@ -1,3 +1,9 @@
+CC = gcc
+OPT = -Werror
+
+compile:
+	$(CC) $(OPT) -o qubes-trust-daemon qubes-trust-daemon.c
+
 install:
 	# Generic file handler for untrusted files
 	install -m 0644 qvm-dvm-trust.desktop $(DESTDIR)/usr/share/applications/qvm-dvm-trust.desktop
@@ -20,3 +26,6 @@ install:
 	# Untrusted folders list
 	mkdir -p $(HOME)/.config/qubes
 	touch $(HOME)/.config/qubes/always-open-in-dispvm.list
+
+clean:
+	rm -f qubes-trust-daemon
