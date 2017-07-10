@@ -272,7 +272,6 @@ class TC_00_trust(unittest.TestCase):
         """Check to make sure correct methods are called given arguments"""
     '''
 
-
 class TC_10_misc(unittest.TestCase):
     def test_000_quiet(self):
         """Make sure we're not printing when we shouldn't be."""
@@ -314,8 +313,11 @@ class TC_10_misc(unittest.TestCase):
         finally:
             self.assertEqual(captured_obj.getvalue(), '')
 
+    # TODO: Test that dependencies are installed either in unittest or program
+
 def list_tests():
     return (
+            TC_00_trust,
             TC_10_misc
     )
 
