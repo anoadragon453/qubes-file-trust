@@ -243,7 +243,7 @@ class TC_00_trust(unittest.TestCase):
             qvm_file_trust.OUTPUT_QUIET = True
             qvm_file_trust.change_file('', True)
 
-            self.assertEqual(cm.exception.code, 77)
+        self.assertEqual(cm.exception.code, 77)
 
     # TODO: Check xattr.setxattr actually works...
     def test_031_xattr_called_when_setting_file_trust(self):
