@@ -103,7 +103,7 @@ class TC_00_trust(unittest.TestCase):
     def test_010_check_read_attribute_success(self):
         """Check whether our untrusted attribute is successfully found"""
         xattr.get_all = unittest.mock.MagicMock(
-                return_value=['user.qubes.untrusted', 'user.something.else'])
+                return_value=[(b'user.qubes.untrusted', b'true'), (b'user.something.else', b'false')])
         os.chmod = unittest.mock.MagicMock()
 
         test_result = False
