@@ -109,8 +109,9 @@ class TC_00_trust(unittest.TestCase):
         test_result = False
         try:
             test_result = qvm_file_trust.is_untrusted_xattr('', '777') 
-        finally:
             self.assertTrue(test_result)
+        except SystemExit as err: 
+            self.fail('System Exit caught: {}'.format(err))
 
     def test_011_check_read_attribute_failure(self):
         """Check whether we support not finding our attribute"""
@@ -118,11 +119,12 @@ class TC_00_trust(unittest.TestCase):
                 return_value=['user.bla.something', 'user.something.else'])
         os.chmod = unittest.mock.MagicMock()
 
-        test_result = False
+        test_result = True
         try:
             test_result = qvm_file_trust.is_untrusted_xattr('', '777') 
-        finally:
             self.assertFalse(test_result)
+        except SystemExit as err: 
+            self.fail('System Exit caught: {}'.format(err))
 
     @unittest.mock.patch('qvm-file-trust.open', 
             new_callable=unittest.mock.mock_open())
