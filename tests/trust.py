@@ -45,17 +45,18 @@ class TC_00_trust(unittest.TestCase):
 
         handlers = (unittest.mock.mock_open(
                         read_data='/home/user/Downloads'
-'\n/home/user/QubesIncoming'.replace('/home/user', user_home)
+                        '\n/home/user/QubesIncoming'.replace(
+                            '/home/user', user_home)
                         ).return_value,
                         unittest.mock.mock_open(
                         read_data='/home/user/Downloads'
-'\n/home/user/QubesIncoming'
-'\n/home/user/Pictures'
-'\n/var/log/'
-'\n/etc/'
-'\n~/terrible files'
-'\n~/my way too long path name with spaces'.replace('/home/user', user_home)
-                        ).return_value)
+                        '\n/home/user/QubesIncoming'
+                        '\n/home/user/Pictures'
+                        '\n/var/log/'
+                        '\n/etc/'
+                        '\n~/terrible files'
+                        '\n~/my way too long path name with spaces'.replace(
+                            '/home/user', user_home)).return_value)
         list_mock.side_effect = handlers
 
         untrusted_folder_paths = []
@@ -83,11 +84,12 @@ class TC_00_trust(unittest.TestCase):
 
         handlers = (unittest.mock.mock_open(
                         read_data='~/Downloads'
-'\n~/QubesIncoming'
+                            '\n~/QubesIncoming'
                         ).return_value,
                         unittest.mock.mock_open(
                         read_data='/home/user/Downloads'
-'\n-/home/user/QubesIncoming'.replace('/home/user', user_home)
+                            '\n-/home/user/QubesIncoming'.replace(
+                            '/home/user', user_home)
                         ).return_value)
         list_mock.side_effect = handlers
 
