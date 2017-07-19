@@ -1,0 +1,10 @@
+qvm_file_trust.py
+setup.py
+qubesfiletrust.egg-info/PKG-INFO
+qubesfiletrust.egg-info/SOURCES.txt
+qubesfiletrust.egg-info/dependency_links.txt
+qubesfiletrust.egg-info/entry_points.txt
+qubesfiletrust.egg-info/requires.txt
+qubesfiletrust.egg-info/top_level.txt
+tests/__init__.py
+tests/trust.py

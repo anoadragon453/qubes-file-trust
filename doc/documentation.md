@@ -6,6 +6,8 @@
 
 `gvfs-bin` is required for custom emblem support in Nautilus
 
+`libffi-dev` for setuptools related install functions(?)
+
 ## File Manager Context Menus
 
 The context menus are defined as a python script for Nautilus (stored in

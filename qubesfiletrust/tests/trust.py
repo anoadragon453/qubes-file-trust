@@ -25,12 +25,11 @@ import unittest
 import unittest.mock
 import getpass
 import xattr
-import imp
 import sys
 import io
 import os
+import qubesfiletrust.qvm-file-trust
 
-qvm_file_trust = imp.load_source('qvm-file-trust', 'qvm-file-trust')
 user_home = os.path.expanduser('~')
 
 class TC_00_trust(unittest.TestCase):
@@ -285,8 +284,8 @@ class TC_10_misc(unittest.TestCase):
         sys.stdout = captured_obj
         try:
             qvm_file_trust.qprint('Test string!')
-            sys.stdout = sys.__stdout__
         finally:
+            sys.stdout = sys.__stdout__
             self.assertEqual(captured_obj.getvalue(), '')
 
         qvm_file_trust.OUTPUT_QUIET = False
@@ -294,8 +293,8 @@ class TC_10_misc(unittest.TestCase):
         sys.stdout = captured_obj
         try:
             qvm_file_trust.qprint('Test string!')
-            sys.stdout = sys.__stdout__
         finally:
+            sys.stdout = sys.__stdout__
             self.assertEqual(captured_obj.getvalue(), 'Test string!\n')
 
     def test_010_error(self):
@@ -305,8 +304,8 @@ class TC_10_misc(unittest.TestCase):
         sys.stdout = captured_obj
         try:
             qvm_file_trust.error('Test string!')
-            sys.stdout = sys.__stdout__
         finally:
+            sys.stdout = sys.__stdout__
             self.assertEqual(captured_obj.getvalue(), 'Error: Test string!\n')
 
         qvm_file_trust.OUTPUT_QUIET = True
@@ -314,8 +313,8 @@ class TC_10_misc(unittest.TestCase):
         sys.stdout = captured_obj
         try:
             qvm_file_trust.error('Test string!')
-            sys.stdout = sys.__stdout__
         finally:
+            sys.stdout = sys.__stdout__
             self.assertEqual(captured_obj.getvalue(), '')
 
     # TODO: Test that dependencies are installed either in unittest or program
