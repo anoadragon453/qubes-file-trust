@@ -31,21 +31,47 @@
 #include <stdlib.h>
 #include <pwd.h>
 #include <dirent.h>
+#include <errno.h>
 #include <limits.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/inotify.h>
 
-#define GLOBAL_LIST "/etc/qubes/always-open-in-dispvm.list"
+/* https://stackoverflow.com/a/29402705
+ * If the C library can support 64-bit file sizes
+ * and offsets, using the standard names,
+ * these defines tell the C library to do so. */
+#define _FILE_OFFSET_BITS 64 
+
+/* POSIX.1 says each process has at least 20 file descriptors.
+ * Three of those belong to the standard streams.
+ * Here, we use a conservative estimate of 15 available;
+ * assuming we use at most two for other uses in this program,
+ * we should never run into any problems.
+ * Most trees are shallower than that, so it is efficient.
+ * Deeper trees are traversed fine, just a bit slower.
+ * (Linux allows typically hundreds to thousands of open files,
+ *  so you'll probably never see any issues even if you used
+ *  a much higher value, say a couple of hundred, but
+ *  15 is a safe, reasonable value.)
+*/
+#ifndef USE_FDS
+#define USE_FDS 15
+#endif
+
 #define MAX_LEN 1024 /*Path length for a directory*/
 #define MAX_EVENTS 1024 /*Max. number of events to process at one go*/
 #define LEN_NAME 16 /*Assuming that the length of the filename won't exceed 16 bytes*/
 #define EVENT_SIZE  ( sizeof (struct inotify_event) ) /*size of one event*/
 #define BUF_LEN     ( MAX_EVENTS * ( EVENT_SIZE + LEN_NAME )) /*buffer to store the data of events*/
 
+#define GLOBAL_LIST "/etc/qubes/always-open-in-dispvm.list"
+
+int watch_fd;
+
 // Set a file as untrusted through qvm-file-trust
 // (Just do one call of qfm with the list of paths as arguments)
-void setFileUntrusted(const std::set<std::string> file_paths) {
+void set_file_as_untrusted(const std::set<std::string> file_paths) {
     pid_t child_pid;
     int exit_code;
 
@@ -95,60 +121,59 @@ void setFileUntrusted(const std::set<std::string> file_paths) {
 
 // Places an inotify_watch on the directory and all subdirectories
 // Should call above method after compiling a list of all files to set as untrusted
-void placeWatchDirectoryAndSubdirectories(const int fd, const std::string file_path) {
-    std::cout << "Placing watch on " << file_path
+int watch_dir(const char *filepath, const struct stat *info,
+                const int typeflag, struct FTW *pathinfo) {
+    // Only watch directories
+	struct stat s;
+	if(stat(filepath, &s) == 0) {
+		if(!(s.st_mode & S_IFDIR)) {
+			// Not a directory
+			return 0;
+		}
+	}
+	else {
+		// Error reading
+		return 0;
+	}
+
+    std::cout << "Placing watch on " << filepath
         << " and subdirectories" << std::endl;
 
-    std::string root = file_path;
-
-    DIR* dp = opendir(root.c_str());
-    if (dp == NULL)
-    {
-        perror("Error opening the starting directory");
-        exit(0);
-    }
-
     // Add watch to starting directory
-    int wd = inotify_add_watch(fd, root.c_str(), IN_CREATE | IN_MODIFY | IN_DELETE);
+    int wd = inotify_add_watch(watch_fd, filepath, 
+		IN_CREATE | IN_MODIFY | IN_DELETE);
     if (wd == -1) {
-        printf("Couldn't add watch to %s\n", root.c_str());
+        printf("Couldn't add watch to %s\n", filepath);
     } else {
-        printf("Watching:: %s\n", root.c_str());
+        printf("Watching:: %s\n", filepath);
     }
 
-    // TODO: Go deeeeeeper
-    // Add watches to the Level 1 sub-dirs
-    struct dirent* entry;
-    std::string abs_dir;
-    char buffer[BUF_LEN];
-    while((entry = readdir(dp))) {
-        // If it is a directory, add a watch
-        // Don't add . and .. dirs
-        if (entry->d_type == DT_DIR && strcmp(entry->d_name, ".") != 0 &&
-                strcmp(entry->d_name, "..") != 0) {
-            std::string full_path = file_path + "/" + entry->d_name;
-            root = abs_dir;
-            realpath(full_path.c_str(), buffer);
-            abs_dir = buffer;
+	return 0;
+}
 
-            wd = inotify_add_watch(fd, abs_dir.c_str(), IN_CREATE | IN_MODIFY | IN_DELETE);
-            if (wd == -1) {
-                printf("Couldn't add watch to the directory %s\n", abs_dir.c_str());
-            } else {
-                printf("Watching:: %s\n", abs_dir.c_str());
-            }
-        }
-    }
+int place_watch_on_dir_and_subdirs(const char* const filepath) {
+	int result;
 
-    closedir(dp);
+    // Check for incorrect path
+    if (filepath == NULL || *filepath == '\0')
+		return errno = EINVAL;
+
+	// Run watch_dir on directory and subdirectories
+	result = nftw(filepath, watch_dir, USE_FDS, FTW_PHYS);
+
+	if (result >= 0) {
+		errno = result;
+	}
+
+	return errno;
 }
 
 // Watches directories and acts on IN_CREATE events
-// In the case of one, sends new dir to above method, and new files to setFileUntrusted
+// In the case of one, sends new dir to above method, and new files to set_file_as_untrusted
 // Need to buffer them though to stop rapid invocation of python interpreter
 // Have something that fires every second and send the files and dirs to the right method and clears the sets
 // This method could just append to the set(s)
-void watchDirectories(const int fd) {
+void keep_watch_on_dirs(const int fd) {
     while(1) {
         int i = 0;
         char buffer[BUF_LEN];
@@ -192,7 +217,7 @@ void watchDirectories(const int fd) {
     }
 }
 
-std::set<std::string> getListOfUntrustedDirs() {
+std::set<std::string> get_untrusted_dir_list() {
     // Get user home directory
     const char* homedir;
     if ((homedir = getenv("HOME")) == NULL) {
@@ -256,13 +281,13 @@ int main(void) {
     // TODO: Set up logging - log to syslog
 
     // Initialize inotify
-    int fd = inotify_init();
-    if (fd < 0) {
+    watch_fd = inotify_init();
+    if (watch_fd < 0) {
         std::cerr << "Unable to initialize inotify" << std::endl;
     }
 
     // Get a list of all untrusted directories
-    std::set<std::string> untrusted_dirs = getListOfUntrustedDirs();
+    std::set<std::string> untrusted_dirs = get_untrusted_dir_list();
 
     // Add a watch to each untrusted directory and their subdirectories
     std::set<std::string>::iterator it;
@@ -270,14 +295,14 @@ int main(void) {
     for (it = untrusted_dirs.begin(); it != untrusted_dirs.end(); ++it) {
         dir = *it;
 
-        placeWatchDirectoryAndSubdirectories(fd, dir);
+        place_watch_on_dir_and_subdirs(dir.c_str());
     }
 
     // Monitor inotify for file events
-    watchDirectories(fd);
+    keep_watch_on_dirs(watch_fd);
 
     // Clean up left-over descriptor
-    close(fd);
+    close(watch_fd);
 
     return 0;
 }
