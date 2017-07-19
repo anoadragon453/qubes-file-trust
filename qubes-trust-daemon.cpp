@@ -24,6 +24,7 @@
 #include <cstdio>
 #include <exception>
 #include <string>
+#include <unordered_map>
 #include <string.h>
 #include <set>
 #include <unistd.h>
@@ -68,6 +69,11 @@
 #define GLOBAL_LIST "/etc/qubes/always-open-in-dispvm.list"
 
 int watch_fd;
+
+/*
+ * Hash table to keep track of watch descriptors and the absolute filepaths
+ * that they correspond to */
+std::unordered_map<int, std::string> watch_table;
 
 // Set a file as untrusted through qvm-file-trust
 // (Just do one call of qfm with the list of paths as arguments)
@@ -116,13 +122,12 @@ void set_file_as_untrusted(const std::set<std::string> file_paths) {
                 exit(1);
             }
     }
-
 }
 
 // Places an inotify_watch on the directory and all subdirectories
 // Should call above method after compiling a list of all files to set as untrusted
 int watch_dir(const char *filepath, const struct stat *info,
-                const int typeflag, struct FTW *pathinfo) {
+              const int typeflag, struct FTW *pathinfo) {
     // Only watch directories
 	struct stat s;
 	if(stat(filepath, &s) == 0) {
@@ -145,7 +150,12 @@ int watch_dir(const char *filepath, const struct stat *info,
     if (wd == -1) {
         printf("Couldn't add watch to %s\n", filepath);
     } else {
-        printf("Watching:: %s\n", filepath);
+        printf("%d Watching:: %s\n", wd, filepath);
+        
+        // Add watch descriptor and filepath to global watchtable
+        std::string filepath_string = filepath;
+        std::pair<int, std::string> watch_pair(wd, filepath_string);
+        watch_table.insert(watch_pair);
     }
 
 	return 0;
@@ -188,10 +198,13 @@ void keep_watch_on_dirs(const int fd) {
             struct inotify_event *event = (struct inotify_event *) &buffer[i];
             if (event->len) {
                 if (event->mask & IN_CREATE) {
+                    // Get absolute filepath from our global watch_table
+                    std::string filepath = watch_table[event->wd];
+                    std::string fullpath = filepath + "/" + event->name;
                     if (event->mask & IN_ISDIR) {
-                        printf("%d DIR::%s CREATED\n", event->wd, event->name);
+                        printf("%d DIR::%s CREATED\n", event->wd, fullpath.c_str());
                     } else {
-                        printf("%d FILE::%s CREATED\n", event->wd, event->name);
+                        printf("%d FILE::%s CREATED\n", event->wd, fullpath.c_str());
                     }
                 }
             }
@@ -217,6 +230,7 @@ void keep_watch_on_dirs(const int fd) {
     }
 }
 
+// TODO: Get this from qvm-file-trust instead to unify definitions
 std::set<std::string> get_untrusted_dir_list() {
     // Get user home directory
     const char* homedir;
