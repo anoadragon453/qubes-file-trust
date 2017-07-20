@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <ftw.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include <pwd.h>
 #include <dirent.h>
 #include <errno.h>
@@ -60,12 +61,12 @@
 #define USE_FDS 15
 #endif
 
-#define MAX_LEN 1024 /*Path length for a directory*/
-#define MAX_EVENTS 1024 /*Max. number of events to process at one go*/
-#define LEN_NAME 16 /*Assuming that the length of the filename won't exceed 16 bytes*/
-#define EVENT_SIZE  ( sizeof (struct inotify_event) ) /*size of one event*/
-#define BUF_LEN     ( MAX_EVENTS * ( EVENT_SIZE + LEN_NAME )) /*buffer to store the data of events*/
-
+#define UNTR_MARK_PERIOD 3	// Period to mark buffer of untrusted files
+#define MAX_LEN 1024		// Path length for a directory
+#define MAX_EVENTS 1024		// Max. number of events to process at one go
+#define LEN_NAME 16			// Assuming filename length won't exceed 16 bytes
+#define EVENT_SIZE  (sizeof(struct inotify_event))	     // Size of one event
+#define BUF_LEN     (MAX_EVENTS*(EVENT_SIZE + LEN_NAME)) // Event data
 #define GLOBAL_LIST "/etc/qubes/always-open-in-dispvm.list"
 
 int watch_fd;
@@ -75,9 +76,19 @@ int watch_fd;
  * that they correspond to */
 std::unordered_map<int, std::string> watch_table;
 
+/*
+ * Store untrusted file's paths in here and mark them all as untrusted
+ * in one fell swoop every few seconds */
+std::set<std::string> untrusted_buffer;
+
 // Set a file as untrusted through qvm-file-trust
 // (Just do one call of qfm with the list of paths as arguments)
-void set_file_as_untrusted(const std::set<std::string> file_paths) {
+void mark_files_as_untrusted(const std::set<std::string> file_paths) {
+    // Return if given empty set
+    if (file_paths.size() <= 0) {
+        return;
+    }
+
     pid_t child_pid;
     int exit_code;
 
@@ -85,6 +96,7 @@ void set_file_as_untrusted(const std::set<std::string> file_paths) {
     const char* qvm_argv[file_paths.size() + 3];
     std::set<std::string>::iterator it;
 
+    // TODO: We don't seem to be able to pass --untrusted to qvm-file-trust
     // Add non-variable program arguments
     qvm_argv[0] = "qvm-file-trust";
     qvm_argv[1] = "--untrusted";
@@ -94,6 +106,8 @@ void set_file_as_untrusted(const std::set<std::string> file_paths) {
     const char* file_path;
     for (it = file_paths.begin(); it != file_paths.end(); ++it) {
         file_path = (*it).c_str();
+
+		printf("Marking untrusted:: %s\n", file_path);
 
         qvm_argv[count] = file_path;
         count++;
@@ -165,8 +179,9 @@ int place_watch_on_dir_and_subdirs(const char* const filepath) {
 	int result;
 
     // Check for incorrect path
-    if (filepath == NULL || *filepath == '\0')
+    if (filepath == NULL || *filepath == '\0') {
 		return errno = EINVAL;
+    }
 
 	// Run watch_dir on directory and subdirectories
 	result = nftw(filepath, watch_dir, USE_FDS, FTW_PHYS);
@@ -179,7 +194,7 @@ int place_watch_on_dir_and_subdirs(const char* const filepath) {
 }
 
 // Watches directories and acts on IN_CREATE events
-// In the case of one, sends new dir to above method, and new files to set_file_as_untrusted
+// In the case of one, sends new dir to above method, and new files to mark_files_as_untrusted
 // Need to buffer them though to stop rapid invocation of python interpreter
 // Have something that fires every second and send the files and dirs to the right method and clears the sets
 // This method could just append to the set(s)
@@ -196,32 +211,36 @@ void keep_watch_on_dirs(const int fd) {
         /* Read the events*/
         while (i < length) {
             struct inotify_event *event = (struct inotify_event *) &buffer[i];
+            std::string filepath = watch_table[event->wd];
+            std::string fullpath = filepath + "/" + event->name;
+
             if (event->len) {
                 if (event->mask & IN_CREATE) {
                     // Get absolute filepath from our global watch_table
-                    std::string filepath = watch_table[event->wd];
-                    std::string fullpath = filepath + "/" + event->name;
                     if (event->mask & IN_ISDIR) {
                         printf("%d DIR::%s CREATED\n", event->wd, fullpath.c_str());
+                        place_watch_on_dir_and_subdirs(fullpath.c_str());
                     } else {
                         printf("%d FILE::%s CREATED\n", event->wd, fullpath.c_str());
+                        // Mark file to be set as untrusted
+                        untrusted_buffer.insert(fullpath);
                     }
                 }
             }
 
             if (event->mask & IN_MODIFY) {
                 if (event->mask & IN_ISDIR) {
-                    printf("%d DIR::%s MODIFIED\n", event->wd, event->name);
+                    printf("%d DIR::%s MODIFIED\n", event->wd, fullpath.c_str());
                 } else {
-                    printf("%d FILE::%s MODIFIED\n", event->wd, event->name);
+                    printf("%d FILE::%s MODIFIED\n", event->wd, fullpath.c_str());
                 }
             }
 
             if (event->mask & IN_DELETE) {
                 if (event->mask & IN_ISDIR) {
-                    printf("%d DIR::%s DELETED\n", event->wd,event->name);
+                    printf("%d DIR::%s DELETED\n", event->wd,fullpath.c_str());
                 } else {
-                    printf("%d FILE::%s DELETED\n", event->wd,event->name);
+                    printf("%d FILE::%s DELETED\n", event->wd,fullpath.c_str());
                 }
             }
 
@@ -229,6 +248,7 @@ void keep_watch_on_dirs(const int fd) {
         }
     }
 }
+
 
 // TODO: Get this from qvm-file-trust instead to unify definitions
 std::set<std::string> get_untrusted_dir_list() {
@@ -291,6 +311,18 @@ std::set<std::string> get_untrusted_dir_list() {
     return rules;
 }
 
+/*
+ * Run every few seconds and untrusted_buffer to handler method */
+void *set_trust_on_timer(void*) {
+    while(1) {
+		printf("Timer fired!\n");
+        sleep(UNTR_MARK_PERIOD);
+        mark_files_as_untrusted(untrusted_buffer);
+		untrusted_buffer.clear();
+    }
+    return 0;
+}
+
 int main(void) {
     // TODO: Set up logging - log to syslog
 
@@ -311,6 +343,10 @@ int main(void) {
 
         place_watch_on_dir_and_subdirs(dir.c_str());
     }
+
+    // Start untrusted_buffer monitor
+    pthread_t tid;
+    pthread_create(&tid, NULL, &set_trust_on_timer, NULL);
 
     // Monitor inotify for file events
     keep_watch_on_dirs(watch_fd);

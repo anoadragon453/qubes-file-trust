@@ -181,8 +181,7 @@ def check_file(path):
             sys.exit(77)
 
     # File is readable, attempt to check trusted status
-    if is_untrusted_xattr(path, orig_perms) or \
-       is_untrusted_path(path):
+    if is_untrusted_xattr(path, orig_perms):
         qprint('File is untrusted')
         sys.exit(1)
     else:
