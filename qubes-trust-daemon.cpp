@@ -102,7 +102,7 @@ void mark_files_as_untrusted(const std::set<std::string> file_paths) {
     qvm_argv[1] = "--untrusted";
 
     // Iterate through file path set and add to argv of qvm-file-trust
-    int count = 1;
+    int count = 2;
     const char* file_path;
     for (it = file_paths.begin(); it != file_paths.end(); ++it) {
         file_path = (*it).c_str();
