@@ -61,7 +61,7 @@
 #define USE_FDS 15
 #endif
 
-#define UNTR_MARK_PERIOD 3	// Period to mark buffer of untrusted files
+#define UNTR_MARK_PERIOD 0.1// Period to mark buffer of untrusted files
 #define MAX_LEN 1024		// Path length for a directory
 #define MAX_EVENTS 1024		// Max. number of events to process at one go
 #define LEN_NAME 16			// Assuming filename length won't exceed 16 bytes
@@ -160,7 +160,7 @@ int watch_dir(const char *filepath, const struct stat *info,
 
     // Add watch to starting directory
     int wd = inotify_add_watch(watch_fd, filepath, 
-		IN_CREATE | IN_MODIFY | IN_DELETE);
+		IN_CREATE | IN_MODIFY | IN_DELETE | IN_MOVED_TO);
     if (wd == -1) {
         printf("Couldn't add watch to %s\n", filepath);
     } else {
@@ -226,6 +226,17 @@ void keep_watch_on_dirs(const int fd) {
                         untrusted_buffer.insert(fullpath);
                     }
                 }
+
+                if (event->mask & IN_MOVED_TO) {
+                    if (event->mask & IN_ISDIR) {
+                        printf("%d DIR::%s CREATED\n", event->wd, fullpath.c_str());
+                        place_watch_on_dir_and_subdirs(fullpath.c_str());
+                    } else {
+                        printf("%d FILE::%s CREATED\n", event->wd, fullpath.c_str());
+                        // Mark file to be set as untrusted
+                        untrusted_buffer.insert(fullpath);
+                    }
+                }
             }
 
             if (event->mask & IN_MODIFY) {
@@ -233,14 +244,6 @@ void keep_watch_on_dirs(const int fd) {
                     printf("%d DIR::%s MODIFIED\n", event->wd, fullpath.c_str());
                 } else {
                     printf("%d FILE::%s MODIFIED\n", event->wd, fullpath.c_str());
-                }
-            }
-
-            if (event->mask & IN_DELETE) {
-                if (event->mask & IN_ISDIR) {
-                    printf("%d DIR::%s DELETED\n", event->wd,fullpath.c_str());
-                } else {
-                    printf("%d FILE::%s DELETED\n", event->wd,fullpath.c_str());
                 }
             }
 
@@ -315,7 +318,7 @@ std::set<std::string> get_untrusted_dir_list() {
  * Run every few seconds and untrusted_buffer to handler method */
 void *set_trust_on_timer(void*) {
     while(1) {
-		printf("Timer fired!\n");
+        printf("Timer fired!\n");
         sleep(UNTR_MARK_PERIOD);
         mark_files_as_untrusted(untrusted_buffer);
 		untrusted_buffer.clear();
@@ -340,7 +343,6 @@ int main(void) {
     std::string dir;
     for (it = untrusted_dirs.begin(); it != untrusted_dirs.end(); ++it) {
         dir = *it;
-
         place_watch_on_dir_and_subdirs(dir.c_str());
     }
 

@@ -17,17 +17,24 @@ install:
 
 	# Utilities
 	install -m 0755 qvm-open-trust-based $(DESTDIR)/usr/bin/qvm-open-trust-based
-	cd qubesfiletrust
-	python setup.py install --root /$(DESTDIR)
+	cd qubesfiletrust; \
+	python setup.py install --root /$(DESTDIR); \
 	cd ..
 
 	# Images
-	install -m 0644 qubes-checkmark.png $(DESTDIR)/usr/share/pixmaps/qubes-checkmark.png
-	install -m 0644 qubes.png $(DESTDIR)/usr/share/pixmaps/qubes.png
+	install -m 0644 images/qubes-checkmark.png $(DESTDIR)/usr/share/pixmaps/qubes-checkmark.png
+	install -m 0644 images/qubes.png $(DESTDIR)/usr/share/pixmaps/qubes.png
 
 	# Untrusted folders list
 	mkdir -p $(HOME)/.config/qubes
 	touch $(HOME)/.config/qubes/always-open-in-dispvm.list
+
+	# Raise max inotify watch limit
+	sysctl fs.inotify.max_user_watches=524288
+	if ! grep -q "fs.inotify.max_user_watches" "/rw/config/rc.local"; then \
+		echo "sysctl fs.inotify.max_user_watches=524288" >> /rw/config/rc.local; \
+	fi
+	chmod +x /rw/config/rc.local
 
 clean:
 	rm -f qubes-trust-daemon

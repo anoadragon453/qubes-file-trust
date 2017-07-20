@@ -28,7 +28,7 @@ import xattr
 import sys
 import io
 import os
-import qubesfiletrust.qvm-file-trust
+import qubesfiletrust.qvm_file_trust
 
 user_home = os.path.expanduser('~')
 
