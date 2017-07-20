@@ -3,7 +3,6 @@ setup(
     name="qubesfiletrust",
     version="0.1.0",
     packages=find_packages(),
-    scripts=["qvm_file_trust.py"],
     entry_points={
         "console_scripts": [
             "qvm-file-trust = qubesfiletrust.qvm_file_trust:main",

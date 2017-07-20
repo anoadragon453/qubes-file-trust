@@ -1,3 +1,0 @@
-[console_scripts]
-qvm-file-trust = qubesfiletrust.qvm_file_trust:main
-
