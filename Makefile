@@ -17,9 +17,7 @@ install:
 
 	# Utilities
 	install -m 0755 qvm-open-trust-based $(DESTDIR)/usr/bin/qvm-open-trust-based
-	cd qubesfiletrust; \
-	python setup.py install --root /$(DESTDIR); \
-	cd ..
+	python setup.py install --root /$(DESTDIR) --install-layout=deb
 
 	# Images
 	install -m 0644 images/qubes-checkmark.png $(DESTDIR)/usr/share/pixmaps/qubes-checkmark.png
