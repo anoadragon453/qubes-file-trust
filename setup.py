@@ -10,7 +10,7 @@ setup(
     },
 
     # Module dependencies
-    install_requires=["xattr>=0.9.1"],
+    install_requires=["pyxattr>=6.0.2"],
 
     # Metadata
     author="Andrew Morgan",

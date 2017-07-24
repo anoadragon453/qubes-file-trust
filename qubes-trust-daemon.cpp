@@ -61,9 +61,15 @@
 #define USE_FDS 15
 #endif
 
-#define UNTR_MARK_PERIOD 0.1// Period to mark buffer of untrusted files
+enum WATCH {
+    PLACE_WATCH,
+    REMOVE_WATCH
+};
+
+#define UNTR_MARK_PERIOD 1  // Period to mark buffer of untrusted files
 #define MAX_LEN 1024		// Path length for a directory
 #define MAX_EVENTS 1024		// Max. number of events to process at one go
+#define MAX_ARG_LEN 500     // Maximum amount of args passed to qvm-file-trust
 #define LEN_NAME 16			// Assuming filename length won't exceed 16 bytes
 #define EVENT_SIZE  (sizeof(struct inotify_event))	     // Size of one event
 #define BUF_LEN     (MAX_EVENTS*(EVENT_SIZE + LEN_NAME)) // Event data
@@ -86,67 +92,93 @@ std::set<std::string> untrusted_buffer;
 void mark_files_as_untrusted(const std::set<std::string> file_paths) {
     // Return if given empty set
     if (file_paths.size() <= 0) {
+        printf("Set is size 0\n");
         return;
     }
+
+    printf("Set is %d items large\n", file_paths.size());
 
     pid_t child_pid;
     int exit_code;
 
     // Convert set to array
-    const char* qvm_argv[file_paths.size() + 3];
-    std::set<std::string>::iterator it;
+    const char* qvm_argv[MAX_ARG_LEN + 3]; // Account for extra args
 
-    // TODO: We don't seem to be able to pass --untrusted to qvm-file-trust
     // Add non-variable program arguments
     qvm_argv[0] = "qvm-file-trust";
     qvm_argv[1] = "--untrusted";
 
     // Iterate through file path set and add to argv of qvm-file-trust
-    int count = 2;
     const char* file_path;
-    for (it = file_paths.begin(); it != file_paths.end(); ++it) {
-        file_path = (*it).c_str();
+    
+    // Loop through list of arguments, processing MAX_ARG_LEN args each time
+    int iterations = file_paths.size() / MAX_ARG_LEN;
+    std::set<std::string>::iterator it = file_paths.begin();
+    for (int i = 0; i <= iterations; i++) {
+        int arg_index = 2;
 
-		printf("Marking untrusted:: %s\n", file_path);
+        // Build an array of MAX_ARG_LEN elements
+        for (; arg_index - 2 < MAX_ARG_LEN; ++it) {
+            // Stop when we've hit the end
+            if (it == file_paths.end())
+                break;
 
-        qvm_argv[count] = file_path;
-        count++;
-    }
+            file_path = (*it).c_str();
 
-    // Add NULL terminator
-    qvm_argv[count] = (char*) NULL;
+            printf("Marking untrusted:: %s\n", file_path);
 
-    // Fork and attempt to call qvm-file-trust
-    switch (child_pid=fork()) {
-        case 0:
-            // We're the child, call qvm-file-trust
-            execv("/usr/bin/qvm-file-trust", (char **) qvm_argv);
+            qvm_argv[arg_index] = file_path;
+            arg_index++;
+            printf("arg_index: %d\n", arg_index); // DEBUG
+        }
 
-            // Unreachable if no error
-            perror("execl qvm-file-trust");
-            exit(1);
-        case -1:
-            // Fork failed
-            perror("fork failed");
-            exit(1);
-        default:
-            // Fork succeeded, and we got our pid, wait until child exits
-            if (waitpid(child_pid, &exit_code, 0) == -1) {
-                perror("wait for qvm-file-trust failed");
+        printf("FINISHED!"); //DEBUG
+
+        // DEBUG
+        for (int j = 0; j < 5; j++)
+            printf("%d: %s\n", j, qvm_argv[j]);
+
+        // Add NULL terminator
+        qvm_argv[arg_index] = (char*) NULL;
+
+        // Once we have a list of MAX_ARG_LEN args,
+        // fork and attempt to call qvm-file-trust
+        printf("\n\nFORKING\n\n"); // DEBUG
+        switch (child_pid=fork()) {
+            case 0:
+                // We're the child, call qvm-file-trust
+                // TODO: Temp qvm-file-trust binary
+                execv("/home/user/Documents/gsoc-2017/qubes-mime-types/qubesfiletrust/qvm_file_trust.py", (char **) qvm_argv);
+
+                // Unreachable if no error
+                perror("execl qvm-file-trust");
                 exit(1);
-            }
+            case -1:
+                // Fork failed
+                perror("fork failed");
+                exit(1);
+            default:
+                // Fork succeeded, and we got our pid, wait until child exits
+                if (waitpid(child_pid, &exit_code, 0) == -1) {
+                    perror("wait for qvm-file-trust failed");
+                    exit(1);
+                }
+        }
     }
+
+    untrusted_buffer.clear();
 }
 
 // Places an inotify_watch on the directory and all subdirectories
 // Should call above method after compiling a list of all files to set as untrusted
 int watch_dir(const char *filepath, const struct stat *info,
               const int typeflag, struct FTW *pathinfo) {
-    // Only watch directories
+    // Watch directories, set files as untrusted
 	struct stat s;
 	if(stat(filepath, &s) == 0) {
 		if(!(s.st_mode & S_IFDIR)) {
-			// Not a directory
+            // File, set as untrusted
+            untrusted_buffer.insert(filepath);
 			return 0;
 		}
 	}
@@ -160,7 +192,7 @@ int watch_dir(const char *filepath, const struct stat *info,
 
     // Add watch to starting directory
     int wd = inotify_add_watch(watch_fd, filepath, 
-		IN_CREATE | IN_MODIFY | IN_DELETE | IN_MOVED_TO);
+		IN_CREATE | IN_MODIFY | IN_DELETE | IN_MOVED_TO | IN_MOVED_FROM);
     if (wd == -1) {
         printf("Couldn't add watch to %s\n", filepath);
     } else {
@@ -236,6 +268,17 @@ void keep_watch_on_dirs(const int fd) {
                         // Mark file to be set as untrusted
                         untrusted_buffer.insert(fullpath);
                     }
+                }
+            }
+
+            if (event->mask & IN_MOVED_FROM) {
+                if (event->mask & IN_ISDIR) {
+                    printf("%d REMOVE DIR::%s\n", event->wd, fullpath.c_str());
+
+                    // TODO: Recursive rm watch
+                    inotify_rm_watch(watch_fd, event->wd);
+                } else {
+                    printf("%d FILE::%s MOVED OUT\n", event->wd, fullpath.c_str());
                 }
             }
 
@@ -321,7 +364,6 @@ void *set_trust_on_timer(void*) {
         printf("Timer fired!\n");
         sleep(UNTR_MARK_PERIOD);
         mark_files_as_untrusted(untrusted_buffer);
-		untrusted_buffer.clear();
     }
     return 0;
 }

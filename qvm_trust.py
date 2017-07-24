@@ -109,10 +109,15 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.MenuProvider):
                 # This particular folder is already marked as trusted
                 all_items_are_untrusted = False
 
-        # Check if the folder are trusted
+        # Check if the folder is trusted
         if all_items_are_untrusted:
             # Mark all selected as trusted
             subprocess.Popen(['/usr/bin/qvm-file-trust', '-t'] + file_paths)
         else:
             # Mark all selected as untrusted
             subprocess.Popen(['/usr/bin/qvm-file-trust', '-u'] + file_paths)
+
+            # Add file emblem
+            if os.path.splitext(file.get_name())[1] == "fileWithEmblem":
+                file.add_emblem("multimedia")
+

@@ -177,7 +177,7 @@ def check_file(path):
             os.chmod(path, 0o644)
 
         except:
-            error('Could not unlock ' + path + ' for reading')
+            error('Could not unlock {} for reading'.format(path))
             sys.exit(77)
 
     # File is readable, attempt to check trusted status
@@ -217,7 +217,7 @@ def change_file(path, trusted):
             # Try to unlock file to get read access
             os.chmod(path, 0o644)
         except:
-            error('Could not unlock ' + path + ' for reading')
+            error('Could not unlock {} for reading'.format(path))
             sys.exit(77)
 
     if trusted:
@@ -227,11 +227,11 @@ def change_file(path, trusted):
             xattr.removexattr(path, 'user.qubes.untrusted')
         except:
             # Unable to remove our xattr, return original permissions
-            error('Unable to remove untrusted attribute')
+            error('Unable to remove untrusted attribute on {}'.format(path))
             try:
                 os.chmod(path, orig_perms)
             except:
-                error('Unable to set original file after error')
+                error('Unable to set original perms. on {}'.format(path))
             finally:
                 sys.exit(65)
 
@@ -243,7 +243,7 @@ def change_file(path, trusted):
             os.chmod(path, 0o0)
         except:
             # Unable to remove our xattr, return original permissions
-            error('Unable to set untrusted attribute')
+            error('Unable to set untrusted attribute on {}'.format(path))
             try:
                 os.chmod(path, orig_perms)
             except:

@@ -1,5 +1,5 @@
 CC = g++
-OPT = -pthread -Werror -std=c++11
+OPT = -pthread -Werror -std=c++11 -g
 
 compile:
 	$(CC) $(OPT) -o qubes-trust-daemon qubes-trust-daemon.cpp
