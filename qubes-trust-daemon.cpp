@@ -132,18 +132,11 @@ void mark_files_as_untrusted(const std::set<std::string> file_paths) {
             printf("arg_index: %d\n", arg_index); // DEBUG
         }
 
-        printf("FINISHED!"); //DEBUG
-
-        // DEBUG
-        for (int j = 0; j < 5; j++)
-            printf("%d: %s\n", j, qvm_argv[j]);
-
-        // Add NULL terminator
+        // Add NULL terminator to signal end of argument list
         qvm_argv[arg_index] = (char*) NULL;
 
         // Once we have a list of MAX_ARG_LEN args,
         // fork and attempt to call qvm-file-trust
-        printf("\n\nFORKING\n\n"); // DEBUG
         switch (child_pid=fork()) {
             case 0:
                 // We're the child, call qvm-file-trust
