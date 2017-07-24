@@ -19,22 +19,22 @@
 *
 */
 
-#include <iostream>
-#include <fstream>
-#include <cstdio>
-#include <exception>
-#include <string>
-#include <unordered_map>
-#include <string.h>
 #include <set>
-#include <unistd.h>
+#include <string>
+#include <cstdio>
+#include <fstream>
+#include <iostream>
+#include <exception>
+#include <unordered_map>
 #include <ftw.h>
-#include <stdlib.h>
-#include <pthread.h>
 #include <pwd.h>
-#include <dirent.h>
 #include <errno.h>
 #include <limits.h>
+#include <dirent.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <pthread.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/inotify.h>
@@ -60,11 +60,6 @@
 #ifndef USE_FDS
 #define USE_FDS 15
 #endif
-
-enum WATCH {
-    PLACE_WATCH,
-    REMOVE_WATCH
-};
 
 #define UNTR_MARK_PERIOD 1  // Period to mark buffer of untrusted files
 #define MAX_LEN 1024		// Path length for a directory
@@ -92,11 +87,8 @@ std::set<std::string> untrusted_buffer;
 void mark_files_as_untrusted(const std::set<std::string> file_paths) {
     // Return if given empty set
     if (file_paths.size() <= 0) {
-        printf("Set is size 0\n");
         return;
     }
-
-    printf("Set is %d items large\n", file_paths.size());
 
     pid_t child_pid;
     int exit_code;
@@ -177,7 +169,7 @@ int watch_dir(const char *filepath, const struct stat *info,
 	}
 	else {
 		// Error reading
-		return 0;
+		return 1;
 	}
 
     std::cout << "Placing watch on " << filepath
@@ -225,9 +217,9 @@ int place_watch_on_dir_and_subdirs(const char* const filepath) {
 // This method could just append to the set(s)
 void keep_watch_on_dirs(const int fd) {
     while(1) {
-        int i = 0;
         char buffer[BUF_LEN];
         int length = read(fd, buffer, BUF_LEN);
+        int i = 0;
 
         if (length < 0) {
             perror("read");
@@ -351,7 +343,7 @@ std::set<std::string> get_untrusted_dir_list() {
 }
 
 /*
- * Run every few seconds and untrusted_buffer to handler method */
+ * Run every few seconds and send untrusted_buffer to handler method */
 void *set_trust_on_timer(void*) {
     while(1) {
         printf("Timer fired!\n");
