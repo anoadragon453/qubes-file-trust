@@ -21,8 +21,8 @@
 #
 #
 
-import os, subprocess
-
+import os, subprocess, gi
+gi.require_version('Nautilus', '3.0')
 from gi.repository import Nautilus, GObject
 
 class FolderSetTrustItemExtension(GObject.GObject, Nautilus.MenuProvider):
