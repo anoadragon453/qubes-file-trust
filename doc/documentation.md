@@ -8,6 +8,8 @@
 
 `libffi-dev` for setuptools related install functions(?)
 
+`g++` (`gcc-c++` on fedora) for compilation of qubes-trust-daemon
+
 ## File Manager Context Menus
 
 The context menus are defined as a python script for Nautilus (stored in
@@ -42,3 +44,12 @@ Unit tests are included in the tests folder.
 
 GUI-based tests are done with the
 [Dogtail](https://gitlab.com/dogtail/dogtail) library.
+
+## Install
+
+Grab the requirements listed above then:
+
+```
+make
+sudo make install
+```
