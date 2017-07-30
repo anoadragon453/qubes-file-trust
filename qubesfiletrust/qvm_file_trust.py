@@ -149,15 +149,19 @@ def is_untrusted_path(path):
 
     # Check if untrusted phrase (/etc/qubes/always-open-in-dispvm.phrase) is
     # present in file path
-    with open(PHRASE_FILE_LOC) as phrase_file:
-        for line in phrase_file.readlines():
-            # Ignore comments
-            if not line.rstrip().startswith('#'):
-                if line.rstrip().upper() in path.upper():
-                    return True
+    try:
+        with open(PHRASE_FILE_LOC) as phrase_file:
+            for line in phrase_file.readlines():
+                # Ignore comments
+                if not line.rstrip().startswith('#'):
+                    if line.rstrip().upper() in path.upper():
+                        return True
 
-                # Only check for first non-comment in file
-                break
+                    # Only check for first non-comment in file
+                    break
+    except:
+        error('Unable to open phrase file: {}'.
+                format(PHRASE_FILE_LOC))
 
     return False
 
