@@ -25,7 +25,38 @@ import os, subprocess, gi
 gi.require_version('Nautilus', '3.0')
 from gi.repository import Nautilus, GObject
 
-class FolderSetTrustItemExtension(GObject.GObject, Nautilus.MenuProvider):
+class FolderSetTrustItemExtension(GObject.GObject, Nautilus.InfoProvider):
+    def __init__(self):
+        pass
+
+    def file_open(self, provider, file):
+        # Don't worry about folders
+        if file.get_uri_scheme() != 'file':
+            return True
+
+        file_path = file.get_location().get_path()
+
+        proc = subprocess.Popen(['/usr/bin/qvm-file-trust', '-cq', file_path],
+                stdout=subprocess.PIPE)
+        subprocess.Popen.wait(proc)
+
+        print("Return code is {}".format(proc.returncode))
+
+        if proc.returncode == 0:
+            # File is trusted, open
+            return True
+        elif proc.returncode == 1:
+            # File is untrusted, block and open dispVM
+
+            # Open DispVM with this file
+            subprocess.Popen(['/usr/bin/qvm-open-trust-based', file_path],
+                stdout=subprocess.PIPE)
+
+            return False
+        
+        # Else, there was an error with qvm-file-trust
+        print ("Error with qvm-file-trust: {}".format(proc.returncode))
+        return True
 
     def get_file_items(self, window, files):
         '''
@@ -59,8 +90,8 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.MenuProvider):
                     stdout=subprocess.PIPE)
             subprocess.Popen.wait(proc)
 
-            if proc.returncode == 2:
-                # This particular folder is already marked as trusted
+            if proc.returncode == 0:
+                # This particular file is trusted
                 all_items_are_untrusted = False
 
         if all_items_are_untrusted:
@@ -105,11 +136,11 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.MenuProvider):
                     stdout=subprocess.PIPE)
             subprocess.Popen.wait(proc)
 
-            if proc.returncode == 2:
-                # This particular folder is already marked as trusted
+            if proc.returncode == 0:
+                # This particular item is already marked as trusted
                 all_items_are_untrusted = False
 
-        # Check if the folder is trusted
+        # Check if the items are trusted
         if all_items_are_untrusted:
             # Mark all selected as trusted
             subprocess.Popen(['/usr/bin/qvm-file-trust', '-t'] + file_paths)
@@ -118,6 +149,7 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.MenuProvider):
             subprocess.Popen(['/usr/bin/qvm-file-trust', '-u'] + file_paths)
 
             # Add file emblem
+            # TODO: This can be done natively I believe
             if os.path.splitext(file.get_name())[1] == "fileWithEmblem":
                 file.add_emblem("multimedia")
 
