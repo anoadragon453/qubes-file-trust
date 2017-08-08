@@ -40,8 +40,6 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.InfoProvider):
                 stdout=subprocess.PIPE)
         subprocess.Popen.wait(proc)
 
-        print("Return code is {}".format(proc.returncode))
-
         if proc.returncode == 0:
             # File is trusted, open
             return True
