@@ -106,6 +106,13 @@ def retrieve_untrusted_folders():
 
     return list(untrusted_paths)
 
+def print_folders():
+    untrusted_folders = retrieve_untrusted_folders()
+
+    # Print out all untrusted folders line-by-line
+    for folder in untrusted_folders:
+        print (folder)
+
 def is_untrusted_xattr(path, orig_perms):
     """Check for 'user.qubes.untrusted' xattr on the file.
 
@@ -310,9 +317,6 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Set or check file/folder '
                                                  'trust levels.')
-    parser.add_argument('paths', metavar='path',
-                        type=str, nargs='+', help='a folder or file path')
-
     # Add arguments
     parser.add_argument('-c', '--check', action='store_true',
                         help='Check whether a file or folder is trusted')
@@ -320,9 +324,15 @@ def main():
                         help='Set files or folders as trusted')
     parser.add_argument('-u', '--untrusted', action='store_true',
                         help='Set files or folders as untrusted')
-
+    parser.add_argument('-p', '--printfolders', action='store_true',
+                        help='Print all local folders considered untrusted')
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='Do not print to stdout')
+
+    # Only require a path for certain options
+    if not '--printfolders' in sys.argv and not '-p' in sys.argv:
+        parser.add_argument('paths', metavar='path',
+                            type=str, nargs='+', help='a folder or file path')
 
     args = parser.parse_args()
 
@@ -338,6 +348,10 @@ def main():
         error('--trusted or --untrusted '
               'cannot be set while --is-trusted is set')
         sys.exit(64)
+
+    if args.printfolders:
+        print_folders()
+        return
 
     # Determine which action to take for each given path
     for path in args.paths:

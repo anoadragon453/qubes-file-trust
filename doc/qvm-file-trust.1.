@@ -35,6 +35,9 @@ Mark the file or folder as trusted.
 .TP
 \-q|\-\-quiet
 Execute the command silently. Useful for scripts.
+.TP
+\-p|\-\-printfolders
+Print all folders on the system that are considered untrusted.
 .SH EXAMPLES
 .TP
 Check the trust level of a file:
