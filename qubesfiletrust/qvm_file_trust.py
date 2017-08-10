@@ -302,7 +302,7 @@ def change_folder(path, trusted):
 
         # Append path to the bottom
         file = open(LOCAL_FOLDER_LOC, 'ab')
-        file.write(bytes(path, 'UTF-8'))
+        file.write(bytes(path))
         file.close()
 
 def main():
