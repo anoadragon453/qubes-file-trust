@@ -29,6 +29,10 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.InfoProvider):
     def __init__(self):
         pass
 
+    def _refresh(self, item_path):
+        """Reload the current file/directory icon"""
+        os.utime(item_path, None)
+
     def file_open(self, provider, file):
         # Don't worry about folders
         if file.get_uri_scheme() != 'file':
@@ -55,6 +59,31 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.InfoProvider):
         # Else, there was an error with qvm-file-trust
         print ("Error with qvm-file-trust: {}".format(proc.returncode))
         return True
+
+    def set_emblem(self, item_path, emblem_name=''):
+        """Set emblem"""
+        # Restore
+        self.restore_emblem(item_path)
+        # Set
+        if emblem_name:
+            emblem = []
+            emblem.append(emblem_name)
+            emblems = list(emblem)
+            emblems.append(None) # Needs
+            item = Gio.File.new_for_path(item_path)
+            info = item.query_info('metadata::emblems', 0, None)
+            info.set_attribute_stringv('metadata::emblems', emblems)
+            item.set_attributes_from_info(info, 0, None)
+        # Refresh
+        self._refresh(item_path)
+    
+    def restore_emblem(self, item_path):
+        """Restore emblem to default"""
+        item = Gio.File.new_for_path(item_path)
+        info = item.query_info('metadata::emblems', 0, None)
+        info.set_attribute('metadata::emblems', Gio.FileAttributeType.INVALID, 0)
+        item.set_attributes_from_info(info, 0, None)
+        self._refresh(item_path)
 
     def get_file_items(self, window, files):
         '''
@@ -142,12 +171,14 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.InfoProvider):
         if all_items_are_untrusted:
             # Mark all selected as trusted
             subprocess.Popen(['/usr/bin/qvm-file-trust', '-t'] + file_paths)
+
+            # Remove important emblem
+            for file_path in file_paths:
+                self.restore_emblem(file_path)
         else:
             # Mark all selected as untrusted
             subprocess.Popen(['/usr/bin/qvm-file-trust', '-u'] + file_paths)
 
             # Add file emblem
-            # TODO: This can be done natively I believe
-            if os.path.splitext(file.get_name())[1] == "fileWithEmblem":
-                file.add_emblem("multimedia")
-
+            for file_path in file_paths:
+                self.set_emblem(file_paths, 'emblem-important')
