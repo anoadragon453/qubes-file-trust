@@ -23,7 +23,7 @@
 
 import os, subprocess, gi
 gi.require_version('Nautilus', '3.0')
-from gi.repository import Nautilus, GObject
+from gi.repository import Nautilus, GObject, Gio
 
 class FolderSetTrustItemExtension(GObject.GObject, Nautilus.InfoProvider, Nautilus.MenuProvider):
     def __init__(self):
@@ -181,4 +181,4 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.InfoProvider, Nautil
 
             # Add file emblem
             for file_path in file_paths:
-                self.set_emblem(file_paths, 'emblem-important')
+                self.set_emblem(file_path, 'emblem-important')
