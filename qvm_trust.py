@@ -25,14 +25,7 @@ import os, subprocess, gi
 gi.require_version('Nautilus', '3.0')
 from gi.repository import Nautilus, GObject, Gio
 
-class FolderSetTrustItemExtension(GObject.GObject, Nautilus.InfoProvider, Nautilus.MenuProvider):
-    def __init__(self):
-        pass
-
-    def _refresh(self, item_path):
-        """Reload the current file/directory icon"""
-        os.utime(item_path, None)
-
+class QubesTrustInfo(GObject.GObject, Nautilus.InfoProvider):
     def file_open(self, provider, file):
         # Don't worry about folders
         if file.get_uri_scheme() != 'file':
@@ -57,8 +50,16 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.InfoProvider, Nautil
             return False
         
         # Else, there was an error with qvm-file-trust
-        print ("Error with qvm-file-trust: {}".format(proc.returncode))
+        print("Error with qvm-file-trust: {}".format(proc.returncode))
         return True
+
+class QubesTrustMenu(GObject.GObject, Nautilus.InfoProvider, Nautilus.MenuProvider):
+    def __init__(self):
+        pass
+
+    def _refresh(self, item_path):
+        """Reload the current file/directory icon"""
+        os.utime(item_path, None)
 
     def set_emblem(self, item_path, emblem_name=''):
         """Set emblem"""
@@ -122,14 +123,16 @@ class FolderSetTrustItemExtension(GObject.GObject, Nautilus.InfoProvider, Nautil
                 all_items_are_untrusted = False
 
         if all_items_are_untrusted:
+            print("with checkmark")
             menu_item = \
                 Nautilus.MenuItem(name='QubesMenuProvider::FolderSetTrust',
-                                  label='Always open in DisposableVM',
+                                  label='Do not always open in DisposableVM',
                                   tip='',
                                   icon='qubes-checkmark')
         else:
             # If at least one folder is still trusted, set all of them as
             # untrusted on click
+            print("without checkmark")
             menu_item = \
                 Nautilus.MenuItem(name='QubesMenuProvider::FolderSetTrust',
                                   label='Always open in DisposableVM',

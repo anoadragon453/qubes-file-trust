@@ -271,13 +271,19 @@ def change_folder(path, trusted):
     # Remove '/' from end of path
     path = path[:-1]
 
+    try:
+        # Create the local file if it does not exist
+        if not os.path.exists(LOCAL_FOLDER_LOC):
+            open(LOCAL_FOLDER_LOC, 'a').close()
+    except:
+        error('Could not create local rule list: {}'.format(
+                LOCAL_FOLDER_LOC))
+        sys.exit(72)
+
     if trusted:
         # Set folder to trusted
         # AKA remove any mentions from untrusted paths list
         try:
-            # Create the local file if it does not exist
-            if not os.path.exists(LOCAL_FOLDER_LOC):
-                open(LOCAL_FOLDER_LOC, 'a').close()
             file = open(LOCAL_FOLDER_LOC, 'r+')
         except:
             error('Unable to read local untrusted folder: {}'.

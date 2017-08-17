@@ -4,8 +4,6 @@
 
 `python3-pyxattr` is required for manipulating extended attribute values
 
-`python2-pyxattr` is required for installing (since setuptools uses python2?)
-
 `gvfs-bin` is required for custom emblem support in Nautilus
 
 `libffi-dev` for setuptools related install functions(?)

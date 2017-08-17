@@ -18,9 +18,9 @@ install:
 	# Utilities
 	install -m 0755 qvm-open-trust-based $(DESTDIR)/usr/bin/qvm-open-trust-based
 	if [ -f "/etc/debian_version" ]; then \
-		python setup.py install --root /$(DESTDIR) --install-layout=deb; \
+		python3 setup.py install --root /$(DESTDIR) --install-layout=deb; \
 	else \
-		python setup.py install --root /$(DESTDIR); \
+		python3 setup.py install --root /$(DESTDIR); \
 	fi
 
 	# Images
