@@ -23,12 +23,15 @@ A '-' character can be placed in front of a path in the local list to override a
 .TP
 \-h|\-\-help
 Display the help text.
-.tp
+.TP
 \-c|\-\-check
-display the trust level of the file or folder. this is the default action.
-.tp
+Display the trust level of the file or folder. This is the default action.
+.TP
 \-C|\-\-check\-multiple
 Returns 1 if at least one path is untrusted.
+.TP
+\-C|\-\-check\-multiple\-all\-untrusted
+Check trust for multiple paths. Returns 1 if and only if ALL paths are untrusted.
 .TP
 \-u|\-\-untrusted
 Mark the file or folder as untrusted.

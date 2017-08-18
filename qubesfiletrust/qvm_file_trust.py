@@ -34,6 +34,7 @@ GLOBAL_FOLDER_LOC = '/etc/qubes/always-open-in-dispvm.list'
 LOCAL_FOLDER_LOC = os.path.expanduser('~') + '/.config/qubes/always-open-in-dispvm.list'
 PHRASE_FILE_LOC = '/etc/qubes/always-open-in-dispvm.phrase'
 untrusted_path_found = False
+all_files_are_untrusted = True
 
 def qprint(print_string, stderr):
     """Will only print if '--quiet' is not set."""
@@ -212,7 +213,9 @@ def check_file(path, multiple_paths):
             sys.exit(1)
     else:
         # Don't return until we've checked all paths
-        if not multiple_paths:
+        if multiple_paths:
+            all_files_are_untrusted = False
+        else:
             qprint('File is trusted', False)
             sys.exit(0)
 
@@ -234,7 +237,9 @@ def check_folder(path, multiple_paths):
             sys.exit(1)
     else:
         # Don't return until we've checked all paths
-        if not multiple_paths:
+        if multiple_paths:
+            all_files_are_untrusted = False
+        else:
             qprint('Folder is trusted', False)
             sys.exit(0)
 
@@ -357,6 +362,9 @@ def main():
     parser.add_argument('-C', '--check-multiple', action='store_true',
                         help='check trust for multiple paths. Returns '
                         '1 if at least one path is untrusted')
+    parser.add_argument('-D', '--check-multiple-all-untrusted', action='store_true',
+                        help='check trust for multiple paths. Returns '
+                        '1 if and only if ALL paths are untrusted')
     parser.add_argument('-t', '--trusted', action='store_true',
                         help='Set files or folders as trusted')
     parser.add_argument('-u', '--untrusted', action='store_true',
@@ -390,21 +398,25 @@ def main():
         print_folders()
         return
 
+    checking_multiple = args.check_multiple or \
+                        args.check_multiple_all_untrusted
+
     # Determine which action to take for each given path
     for path in args.paths:
         path = os.path.expanduser(path)
         path = os.path.abspath(path)
         if not (args.check or args.trusted or args.untrusted) \
             or args.check:
-            if not args.check_multiple and len(args.paths) > 1:
+            if (not args.check_multiple_all_untrusted and \
+                not args.check_multiple) and len(args.paths) > 1:
                 error('Use --check-multiple to check multiple paths')
                 sys.exit(64)
             if os.path.isdir(path):
                 # Check folder
-                check_folder(path, args.check_multiple)
+                check_folder(path, checking_multiple)
             elif not os.path.isdir(path):
                 # Check file
-                check_file(path, args.check_multiple)
+                check_file(path, checking_multiple)
 
         elif os.path.isdir(path):
             if args.trusted:
@@ -426,6 +438,13 @@ def main():
         # Check whether we found an untrusted file during a check-multiple run
         global untrusted_path_found
         if untrusted_path_found == True:
+            # If we're checking if ALL files are untrusted, only return 1 if
+            # all files are indeed untrusted
+            if args.check_multiple_all_untrusted and all_files_are_untrusted:
+                sys.exit(1)
+            else:
+                sys.exit(0)
+
             sys.exit(1)
         else:
             qprint('Paths are trusted', False)
