@@ -33,15 +33,24 @@ OUTPUT_QUIET = False
 GLOBAL_FOLDER_LOC = '/etc/qubes/always-open-in-dispvm.list'
 LOCAL_FOLDER_LOC = os.path.expanduser('~') + '/.config/qubes/always-open-in-dispvm.list'
 PHRASE_FILE_LOC = '/etc/qubes/always-open-in-dispvm.phrase'
+untrusted_path_found = False
 
-def qprint(print_string):
+def qprint(print_string, stderr):
     """Will only print if '--quiet' is not set."""
     if not OUTPUT_QUIET:
-        print(print_string)
+        if stderr:
+            print(print_string)
+        else:
+            print(print_string, file=sys.stderr)
 
 def error(error_string):
-    """Print a string prepended with an error phrase.'"""
-    qprint('Error: {}'.format(error_string))
+    """Print a string to stdout prepended with an error phrase.'"""
+    qprint('Error: {}'.format(error_string), False)
+
+# Print to stderr with 'Error: ' prepended
+def serror(error_string):
+    """Print a string to stderr prepended with an error phrase.'"""
+    qprint('Error: {}'.format(error_string), True)
 
 def retrieve_untrusted_folders():
     """Compile the list of untrusted folder paths from the following files:
@@ -75,7 +84,7 @@ def retrieve_untrusted_folders():
                         untrusted_paths.add(expanded_path)
 
     except:
-        error('Unable to open global untrusted folder description: {}'.
+        serror('Unable to open global untrusted folder description: {}'.
                 format(GLOBAL_FOLDER_LOC))
 
     # Then the local list
@@ -101,7 +110,7 @@ def retrieve_untrusted_folders():
                         untrusted_paths.add(expanded_path)
 
     except:
-        error('Unable to open local untrusted folder description: {}'.
+        serror('Unable to open local untrusted folder description: {}'.
                 format(LOCAL_FOLDER_LOC))
 
     return list(untrusted_paths)
@@ -167,12 +176,12 @@ def is_untrusted_path(path):
                     # Only check for first non-comment in file
                     break
     except:
-        error('Unable to open phrase file: {}'.
+        serror('Unable to open phrase file: {}'.
                 format(PHRASE_FILE_LOC))
 
     return False
 
-def check_file(path):
+def check_file(path, multiple_paths):
     """Check if the given file is trusted"""
     # Save the original permissions of the file.
     orig_perms = os.stat(path).st_mode
@@ -193,13 +202,21 @@ def check_file(path):
 
     # File is readable, attempt to check trusted status
     if is_untrusted_xattr(path, orig_perms):
-        qprint('File is untrusted')
-        sys.exit(1)
+        # Print out which paths are untrusted if we're checking multiple paths
+        global untrusted_path_found
+        if multiple_paths:
+            qprint('Untrusted: {}'.format(path), False)
+            untrusted_path_found = True
+        else:
+            qprint('File is untrusted', False)
+            sys.exit(1)
     else:
-        qprint('File is trusted')
-        sys.exit(0)
+        # Don't return until we've checked all paths
+        if not multiple_paths:
+            qprint('File is trusted', False)
+            sys.exit(0)
 
-def check_folder(path):
+def check_folder(path, multiple_paths):
     """Check if the given folder is trusted"""
     # Remove '/' from end of path
     if path.endswith('/'):
@@ -207,11 +224,19 @@ def check_folder(path):
 
     # Check if path is in the untrusted paths list
     if is_untrusted_path(path):
-        qprint('Folder is untrusted')
-        sys.exit(1)
+        # Print out which paths are untrusted if we're checking multiple paths
+        global untrusted_path_found
+        if multiple_paths:
+            qprint('Untrusted: {}'.format(path), False)
+            untrusted_path_found = True
+        else:
+            qprint('Folder is untrusted', False)
+            sys.exit(1)
     else:
-        qprint('Folder is trusted')
-        sys.exit(0)
+        # Don't return until we've checked all paths
+        if not multiple_paths:
+            qprint('Folder is trusted', False)
+            sys.exit(0)
 
 def change_file(path, trusted):
     """Change the trust state of a file"""
@@ -328,7 +353,10 @@ def main():
                                                  'trust levels.')
     # Add arguments
     parser.add_argument('-c', '--check', action='store_true',
-                        help='Check whether a file or folder is trusted')
+                        help='check whether a file or folder is trusted')
+    parser.add_argument('-C', '--check-multiple', action='store_true',
+                        help='check trust for multiple paths. Returns '
+                        '1 if at least one path is untrusted')
     parser.add_argument('-t', '--trusted', action='store_true',
                         help='Set files or folders as trusted')
     parser.add_argument('-u', '--untrusted', action='store_true',
@@ -368,12 +396,16 @@ def main():
         path = os.path.abspath(path)
         if not (args.check or args.trusted or args.untrusted) \
             or args.check:
+            if not args.check_multiple and len(args.paths) > 1:
+                error('Use --check-multiple to check multiple paths')
+                sys.exit(64)
             if os.path.isdir(path):
                 # Check folder
-                check_folder(path)
+                check_folder(path, args.check_multiple)
             elif not os.path.isdir(path):
                 # Check file
-                check_file(path)
+                check_file(path, args.check_multiple)
+
         elif os.path.isdir(path):
             if args.trusted:
                 # Set folder as trusted
@@ -381,6 +413,7 @@ def main():
             elif args.untrusted:
                 # Set folder as untrusted
                 change_folder(path, False)
+
         elif not os.path.isdir(path):
             if args.trusted:
                 # Set file as trusted
@@ -388,6 +421,15 @@ def main():
             elif args.untrusted:
                 # Set file as untrusted
                 change_file(path, False)
+
+    if args.check_multiple:
+        # Check whether we found an untrusted file during a check-multiple run
+        global untrusted_path_found
+        if untrusted_path_found == True:
+            sys.exit(1)
+        else:
+            qprint('Paths are trusted', False)
+            sys.exit(0)
 
 if __name__ == '__main__':
     main()
