@@ -28,13 +28,14 @@ import sys
 import argparse
 import os
 import xattr
+import subprocess
 
 OUTPUT_QUIET = False
 GLOBAL_FOLDER_LOC = '/etc/qubes/always-open-in-dispvm.list'
 LOCAL_FOLDER_LOC = os.path.expanduser('~') + '/.config/qubes/always-open-in-dispvm.list'
 PHRASE_FILE_LOC = '/etc/qubes/always-open-in-dispvm.phrase'
 untrusted_path_found = False
-all_files_are_untrusted = True
+all_paths_are_untrusted = True
 
 def qprint(print_string, stderr):
     """Will only print if '--quiet' is not set."""
@@ -45,12 +46,12 @@ def qprint(print_string, stderr):
             print(print_string, file=sys.stderr)
 
 def error(error_string):
-    """Print a string to stdout prepended with an error phrase.'"""
+    """Print a string to stdout prepended with an error phrase."""
     qprint('Error: {}'.format(error_string), False)
 
 # Print to stderr with 'Error: ' prepended
 def serror(error_string):
-    """Print a string to stderr prepended with an error phrase.'"""
+    """Print a string to stderr prepended with an error phrase."""
     qprint('Error: {}'.format(error_string), True)
 
 def retrieve_untrusted_folders():
@@ -123,6 +124,14 @@ def print_folders():
     for folder in untrusted_folders:
         print (folder)
 
+def safe_chmod(path, perms, msg):
+    # Set permissions to perms
+    try:
+        os.chmod(path, perms)
+    except:
+        error(msg)
+        sys.exit(77)
+
 def is_untrusted_xattr(path, orig_perms):
     """Check for 'user.qubes.untrusted' xattr on the file.
 
@@ -139,17 +148,24 @@ def is_untrusted_xattr(path, orig_perms):
     untrusted_attribute = (b'user.qubes.untrusted', b'true')
     if untrusted_attribute in file_xattrs:
         # We found our attribute
+
+        # Return to original permissions
+        safe_chmod(path, orig_perms,
+            'Unable to set original permissions of {}'.format(path))
         return True
 
     # Return to original permissions
-    try:
-        os.chmod(path, orig_perms)
-    except:
-        error('Unable to set original permissions of {}'.format(path))
-        sys.exit(77)
+    safe_chmod(path, orig_perms,
+        'Unable to set original permissions of {}'.format(path))
 
     # We didn't find our attribute
     return False
+
+def path_is_parent(parent, child):
+    parent = os.path.abspath(parent)
+    child = os.path.abspath(child)
+
+    return os.path.commonpath([parent]) == os.path.commonpath([parent, child])
 
 def is_untrusted_path(path):
     """Check to see if the path lies under a path that's considered untrusted
@@ -160,8 +176,9 @@ def is_untrusted_path(path):
 
     untrusted_paths = retrieve_untrusted_folders()
 
+    # Checks if the path is a child of an untrusted path (might be Linux only)
     for untrusted_path in untrusted_paths:
-        if path.startswith(untrusted_path):
+        if path_is_parent(untrusted_path, path):
             return True
 
     # Check if untrusted phrase (/etc/qubes/always-open-in-dispvm.phrase) is
@@ -171,7 +188,7 @@ def is_untrusted_path(path):
             for line in phrase_file.readlines():
                 # Ignore comments
                 if not line.rstrip().startswith('#'):
-                    if line.rstrip().upper() in path.upper():
+                    if line.rstrip().upper() is path.upper():
                         return True
 
                     # Only check for first non-comment in file
@@ -193,18 +210,15 @@ def check_file(path, multiple_paths):
             pass
 
     except IOError:
-        try:
-            # Try to unlock file to get read access
-            os.chmod(path, 0o644)
-
-        except:
-            error('Could not unlock {} for reading'.format(path))
-            sys.exit(77)
+        # Try to unlock file to get read access
+        safe_chmod(path, 0o644,
+            'Could not unlock {} for reading'.format(path))
 
     # File is readable, attempt to check trusted status
+    global untrusted_path_found
+    global all_paths_are_untrusted
     if is_untrusted_xattr(path, orig_perms):
         # Print out which paths are untrusted if we're checking multiple paths
-        global untrusted_path_found
         if multiple_paths:
             qprint('Untrusted: {}'.format(path), False)
             untrusted_path_found = True
@@ -214,7 +228,7 @@ def check_file(path, multiple_paths):
     else:
         # Don't return until we've checked all paths
         if multiple_paths:
-            all_files_are_untrusted = False
+            all_paths_are_untrusted = False
         else:
             qprint('File is trusted', False)
             sys.exit(0)
@@ -225,10 +239,12 @@ def check_folder(path, multiple_paths):
     if path.endswith('/'):
         path = path[:-1]
 
+    global all_paths_are_untrusted
+    global untrusted_path_found
+
     # Check if path is in the untrusted paths list
     if is_untrusted_path(path):
         # Print out which paths are untrusted if we're checking multiple paths
-        global untrusted_path_found
         if multiple_paths:
             qprint('Untrusted: {}'.format(path), False)
             untrusted_path_found = True
@@ -238,7 +254,7 @@ def check_folder(path, multiple_paths):
     else:
         # Don't return until we've checked all paths
         if multiple_paths:
-            all_files_are_untrusted = False
+            all_paths_are_untrusted = False
         else:
             qprint('Folder is trusted', False)
             sys.exit(0)
@@ -254,60 +270,78 @@ def change_file(path, trusted):
             pass
 
     except IOError:
-        try:
-            # Try to unlock file to get read access
-            os.chmod(path, 0o644)
-        except:
-            error('Could not unlock {} for reading'.format(path))
-            sys.exit(77)
-
+        # Try to unlock file to get read access
+        safe_chmod(path, 0o644,
+            'Could not unlock {} for reading'.format(path))
     if trusted:
         # Set file to trusted
         # AKA remove our xattr
-        try:
-            xattr.removexattr(path, 'user.qubes.untrusted')
-        except:
-            # Unable to remove our xattr, return original permissions
-            error('Unable to remove untrusted attribute on {}'.format(path))
+        file_xattrs = xattr.get_all(path)
+        untrusted_attribute = (b'user.qubes.untrusted', b'true')
+
+        # Check if the xattr exists first
+        if untrusted_attribute in file_xattrs:
             try:
-                os.chmod(path, orig_perms)
+                xattr.removexattr(path, 'user.qubes.untrusted')
             except:
-                error('Unable to set original perms. on {}'.format(path))
-            finally:
-                sys.exit(65)
+                # Unable to remove our xattr, return original permissions
+                error('Unable to remove untrusted attribute on {}'.format(path))
+                safe_chmod(path, orig_perms,
+                    'Unable to set original perms. on {}'.format(path))
+
+        try:
+            # Remove important nautilus emblem
+            proc = subprocess.Popen(['/usr/bin/gvfs-set-attribute', path, '-t', 'unset',
+                'metadata::emblems'], stdout=subprocess.PIPE)
+            subprocess.Popen.wait(proc)
+            os.utime(path, None)
+        except:
+            error('Unable to remove emblem on {}'.format(path))
 
     else:
         # Set file to untrusted
         # AKA add our xattr and lock
         try:
             xattr.setxattr(path, 'user.qubes.untrusted', 'true')
-            os.chmod(path, 0o0)
+            safe_chmod(path, 0o0,
+                    'Unable to set untrusted permissions on: {}'.format(path))
         except:
             # Unable to remove our xattr, return original permissions
-            error('Unable to set untrusted attribute on {}'.format(path))
-            try:
-                os.chmod(path, orig_perms)
-            except:
-                error('Unable to set original file after error')
-            finally:
-                sys.exit(65)
+            safe_chmod(path, orig_perms,
+                'Unable to return perms after setting as untrusted: {}'.
+                format(path))
+            sys.exit(65)
 
-    # Add a GNOME emblem to the file
-    # Subprocess:
-    # gvfs-set-attribute "$FILEPATH" -t stringv metadata::emblems important
+        try:
+            proc = subprocess.Popen(['/usr/bin/gvfs-set-attribute', path, '-t', 'stringv',
+                'metadata::emblems', 'important'])
+            subprocess.Popen.wait(proc)
+            os.utime(path, None)
+        except:
+            error('Unable to add emblem \'important\' on {}'.format(path))
+
 
 def change_folder(path, trusted):
     """Change the trust state of a folder"""
     # Remove '/' from end of path
-    path = path[:-1]
+    if path.endswith('/'):
+        path = path[:-1]
 
     try:
+        # Create the ~/.config/qubes folder if it doesn't exist
+        home_dir = os.path.expanduser('~')
+        if not os.path.exists(home_dir + '/.config'):
+            os.mkdir(home_dir + '/.config')
+        if not os.path.exists(home_dir + '/.config/qubes'):
+            os.mkdir(home_dir + '/.config/qubes')
+
         # Create the local file if it does not exist
         if not os.path.exists(LOCAL_FOLDER_LOC):
             open(LOCAL_FOLDER_LOC, 'a').close()
     except:
         error('Could not create local rule list: {}'.format(
                 LOCAL_FOLDER_LOC))
+        error('Check /home/<your user> folder exists...')
         sys.exit(72)
 
     if trusted:
@@ -348,7 +382,9 @@ def change_folder(path, trusted):
 
         # Append path to the bottom
         file = open(LOCAL_FOLDER_LOC, 'ab')
-        file.write(bytes(path))
+        file.write(bytes(path, 'UTF-8'))
+
+        file.truncate()
         file.close()
 
 def main():
@@ -434,20 +470,23 @@ def main():
                 # Set file as untrusted
                 change_file(path, False)
 
-    if args.check_multiple:
+    if args.check_multiple or args.check_multiple_all_untrusted:
         # Check whether we found an untrusted file during a check-multiple run
         global untrusted_path_found
+        global all_paths_are_untrusted
         if untrusted_path_found == True:
             # If we're checking if ALL files are untrusted, only return 1 if
             # all files are indeed untrusted
-            if args.check_multiple_all_untrusted and all_files_are_untrusted:
+            if args.check_multiple_all_untrusted and all_paths_are_untrusted:
+                qprint('All paths untrusted', False)
                 sys.exit(1)
             else:
+                qprint('At least one path is trusted', False)
                 sys.exit(0)
 
             sys.exit(1)
         else:
-            qprint('Paths are trusted', False)
+            qprint('All paths are trusted', False)
             sys.exit(0)
 
 if __name__ == '__main__':

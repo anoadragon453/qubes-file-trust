@@ -108,8 +108,6 @@ class QubesTrustMenu(GObject.GObject, Nautilus.InfoProvider, Nautilus.MenuProvid
         if files is None:
             return
 
-        print('Running get_file_items')
-
         global last_calculation
         all_items_are_untrusted = True
         file_paths = []
@@ -122,40 +120,47 @@ class QubesTrustMenu(GObject.GObject, Nautilus.InfoProvider, Nautilus.MenuProvid
 
             file_paths.append(file_obj.get_location().get_path())
 
+        if len(file_paths) == 0:
+            return
+
         if last_calculation['file_list'] == file_paths:
-            # We've already checked this, 
+            # We've already checked this, just use the last result
+            print('Using last calculation: {}'.format(
+                    last_calculation['result']))
             all_items_are_untrusted = last_calculation['result']
         else:
             # Record this list of files for next time
             last_calculation['file_list'] = file_paths
-            last_calculation['result'] = True
 
-            # TODO: Allow qvm-file-trust to check multiple files
-            for file_path in file_paths:
-                # Check if any of the items set as trusted
-                proc = subprocess.Popen(['/usr/bin/qvm-file-trust', '-cq', file_path],
-                        stdout=subprocess.PIPE)
-                subprocess.Popen.wait(proc)
+            # Check if any of the items set as trusted
+            proc = subprocess.Popen(['/usr/bin/qvm-file-trust', '-Dq'] +
+                file_paths, stdout=subprocess.PIPE)
+            subprocess.Popen.wait(proc)
 
-                if proc.returncode == 0:
-                    # This particular file is trusted
-                    all_items_are_untrusted = False
-                    last_calculation['result'] = False
+            # With -D, qvm-file-trust will only return 1, or untrusted, if ALL
+            # files are untrusted
+            print("Return code: {}".format(proc.returncode))
+            all_items_are_untrusted = (proc.returncode == 1)
+
+            # Save this result for next time
+            last_calculation['result'] = all_items_are_untrusted
 
         if all_items_are_untrusted:
+            # All files are trusted
             print("with checkmark")
             menu_item = \
-                Nautilus.MenuItem(name='QubesMenuProvider::FolderSetTrust',
-                                  label='Do not always open in DisposableVM',
+                Nautilus.MenuItem(name='QubesMenuProvider::QubesTrustMenu',
+                                  label='Do Not Always Open In DisposableVM',
                                   tip='',
                                   icon='qubes-checkmark')
+
         else:
             # If at least one folder is still trusted, set all of them as
             # untrusted on click
             print("without checkmark")
             menu_item = \
-                Nautilus.MenuItem(name='QubesMenuProvider::FolderSetTrust',
-                                  label='Always open in DisposableVM',
+                Nautilus.MenuItem(name='QubesMenuProvider::QubesTrustMenu',
+                                  label='Always Open In DisposableVM',
                                   tip='',
                                   icon='')
 
@@ -171,7 +176,9 @@ class QubesTrustMenu(GObject.GObject, Nautilus.InfoProvider, Nautilus.MenuProvid
         if files is None:
             return
 
-        all_items_are_untrusted = True
+        # Invalidate last calculation
+        last_calculation['file_list'] = []
+
         file_paths = []
 
         # Get absolute paths of all files
@@ -184,19 +191,16 @@ class QubesTrustMenu(GObject.GObject, Nautilus.InfoProvider, Nautilus.MenuProvid
 
             file_paths.append(file_path)
 
-        # TODO: Ability to run subprocess with file_paths
-        for file_path in file_paths:
-            # Check if any of the items set as trusted
-            proc = subprocess.Popen(['/usr/bin/qvm-file-trust', '-cq', file_path],
-                    stdout=subprocess.PIPE)
-            subprocess.Popen.wait(proc)
+        if len(file_paths) == 0:
+            return
 
-            if proc.returncode == 0:
-                # This particular item is already marked as trusted
-                all_items_are_untrusted = False
+        # Check whether all items are untrusted
+        proc = subprocess.Popen(['/usr/bin/qvm-file-trust', '-Dq'] +
+                file_paths, stdout=subprocess.PIPE)
+        subprocess.Popen.wait(proc)
 
-        # Check if the items are trusted
-        if all_items_are_untrusted:
+        # If all items are untrusted, set to trusted
+        if proc.returncode == 1:
             # Mark all selected as trusted
             subprocess.Popen(['/usr/bin/qvm-file-trust', '-t'] + file_paths)
 
@@ -204,7 +208,7 @@ class QubesTrustMenu(GObject.GObject, Nautilus.InfoProvider, Nautilus.MenuProvid
             for file_path in file_paths:
                 self.restore_emblem(file_path)
         else:
-            # Mark all selected as untrusted
+            # Some files are trusted, mark all as untrusted
             subprocess.Popen(['/usr/bin/qvm-file-trust', '-u'] + file_paths)
 
             # Add file emblem
