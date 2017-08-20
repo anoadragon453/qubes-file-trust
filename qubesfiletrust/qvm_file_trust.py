@@ -39,6 +39,7 @@ all_paths_are_untrusted = True
 
 def qprint(print_string, stderr):
     """Will only print if '--quiet' is not set."""
+
     if not OUTPUT_QUIET:
         if stderr:
             print(print_string)
@@ -47,11 +48,13 @@ def qprint(print_string, stderr):
 
 def error(error_string):
     """Print a string to stdout prepended with an error phrase."""
+
     qprint('Error: {}'.format(error_string), False)
 
 # Print to stderr with 'Error: ' prepended
 def serror(error_string):
     """Print a string to stderr prepended with an error phrase."""
+
     qprint('Error: {}'.format(error_string), True)
 
 def retrieve_untrusted_folders():
@@ -60,6 +63,7 @@ def retrieve_untrusted_folders():
     global list: /etc/qubes
     local  list: ~/.config/qubes into a list
     """
+
     untrusted_paths = set()
 
     # Start with the global list
@@ -118,6 +122,8 @@ def retrieve_untrusted_folders():
     return list(untrusted_paths)
 
 def print_folders():
+    """Print all known untrusted folders, line-by-line."""
+
     untrusted_folders = retrieve_untrusted_folders()
 
     # Print out all untrusted folders line-by-line
@@ -125,6 +131,8 @@ def print_folders():
         print (folder)
 
 def safe_chmod(path, perms, msg):
+    """Chmod operation wrapped in a try/except statement."""
+
     # Set permissions to perms
     try:
         os.chmod(path, perms)
@@ -137,6 +145,7 @@ def is_untrusted_xattr(path, orig_perms):
 
     Expects a readable file.
     """
+
     try:
         file_xattrs = xattr.get_all(path)
 
@@ -162,6 +171,8 @@ def is_untrusted_xattr(path, orig_perms):
     return False
 
 def path_is_parent(parent, child):
+    """Check if a child file/path is in a parent folder/path."""
+
     parent = os.path.abspath(parent)
     child = os.path.abspath(child)
 
@@ -201,6 +212,7 @@ def is_untrusted_path(path):
 
 def check_file(path, multiple_paths):
     """Check if the given file is trusted"""
+
     # Save the original permissions of the file.
     orig_perms = os.stat(path).st_mode
 
@@ -235,6 +247,7 @@ def check_file(path, multiple_paths):
 
 def check_folder(path, multiple_paths):
     """Check if the given folder is trusted"""
+
     # Remove '/' from end of path
     if path.endswith('/'):
         path = path[:-1]
@@ -261,6 +274,7 @@ def check_folder(path, multiple_paths):
 
 def change_file(path, trusted):
     """Change the trust state of a file"""
+
     # Save the original permissions of the file
     orig_perms = os.stat(path).st_mode
 
@@ -323,6 +337,7 @@ def change_file(path, trusted):
 
 def change_folder(path, trusted):
     """Change the trust state of a folder"""
+
     # Remove '/' from end of path
     if path.endswith('/'):
         path = path[:-1]
@@ -389,6 +404,7 @@ def change_folder(path, trusted):
 
 def main():
     """Read in from the command line and call dependent functions"""
+
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Set or check file/folder '
                                                  'trust levels.')
