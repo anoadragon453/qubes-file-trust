@@ -125,8 +125,6 @@ class QubesTrustMenu(GObject.GObject, Nautilus.InfoProvider, Nautilus.MenuProvid
 
         if last_calculation['file_list'] == file_paths:
             # We've already checked this, just use the last result
-            print('Using last calculation: {}'.format(
-                    last_calculation['result']))
             all_items_are_untrusted = last_calculation['result']
         else:
             # Record this list of files for next time
@@ -139,7 +137,6 @@ class QubesTrustMenu(GObject.GObject, Nautilus.InfoProvider, Nautilus.MenuProvid
 
             # With -D, qvm-file-trust will only return 1, or untrusted, if ALL
             # files are untrusted
-            print("Return code: {}".format(proc.returncode))
             all_items_are_untrusted = (proc.returncode == 1)
 
             # Save this result for next time
@@ -147,7 +144,6 @@ class QubesTrustMenu(GObject.GObject, Nautilus.InfoProvider, Nautilus.MenuProvid
 
         if all_items_are_untrusted:
             # All files are trusted
-            print("with checkmark")
             menu_item = \
                 Nautilus.MenuItem(name='QubesMenuProvider::QubesTrustMenu',
                                   label='Do Not Always Open In DisposableVM',

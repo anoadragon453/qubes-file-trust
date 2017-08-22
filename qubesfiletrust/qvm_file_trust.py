@@ -151,6 +151,8 @@ def is_untrusted_xattr(path, orig_perms):
 
     except:
         error('Unable to read extended attributes of {}'.format(path))
+        safe_chmod(path, orig_perms,
+            'Unable to set original permissions of {}'.format(path))
         sys.exit(65)
 
     # Check for our custom qubes attribute
