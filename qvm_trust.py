@@ -26,6 +26,12 @@ gi.require_version('Nautilus', '3.0')
 from gi.repository import Nautilus, GObject, Gio
 
 class QubesTrustInfo(GObject.GObject, Nautilus.InfoProvider):
+    def __init__(self):
+        pass
+
+    def update_file_info_full(self, provider, handle, closure, file):
+        return Nautilus.OperationResult.COMPLETE
+
     def file_open(self, provider, file):
         # Don't worry about folders
         if file.get_uri_scheme() != 'file':
@@ -57,7 +63,7 @@ class QubesTrustInfo(GObject.GObject, Nautilus.InfoProvider):
 # If so, then there's no need to check it again
 last_calculation = {'file_list': [], 'result': True}
 
-class QubesTrustMenu(GObject.GObject, Nautilus.InfoProvider, Nautilus.MenuProvider):
+class QubesTrustMenu(GObject.GObject, Nautilus.MenuProvider):
     def __init__(self):
         pass
 
@@ -153,7 +159,6 @@ class QubesTrustMenu(GObject.GObject, Nautilus.InfoProvider, Nautilus.MenuProvid
         else:
             # If at least one folder is still trusted, set all of them as
             # untrusted on click
-            print("without checkmark")
             menu_item = \
                 Nautilus.MenuItem(name='QubesMenuProvider::QubesTrustMenu',
                                   label='Always Open In DisposableVM',
