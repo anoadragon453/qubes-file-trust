@@ -1,11 +1,11 @@
-CPPFLAGS = -pthread -Werror -std=c++11 -g -O
+CXXFLAGS = -pthread -Werror -std=c++11 -g -O
 INSTALL = install
 INSTALL_PROGRAM = $(INSTALL)
 INSTALL_DATA = ${INSTALL} -m 0644
 PYTHON = python3
 
 compile:
-	$(CXX) $(CPPFLAGS) -o qubes-trust-daemon qubes-trust-daemon.cpp
+	$(CXX) $(CXXFLAGS) -o qubes-trust-daemon qubes-trust-daemon.cpp
 
 install:
 	# Generic file handler for untrusted files
