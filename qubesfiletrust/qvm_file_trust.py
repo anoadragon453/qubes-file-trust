@@ -172,6 +172,28 @@ def is_untrusted_xattr(path, orig_perms):
     # We didn't find our attribute
     return False
 
+def set_visual_attributes(path, attributes_on):
+    """Add visual attributes such as emblems and colors to files/folders"""
+    if attributes_on:
+        try:
+            # Add important nautilius emblem
+            proc = subprocess.Popen(['/usr/bin/gvfs-set-attribute', os.path.realpath(path), '-t', 'stringv',
+                'metadata::emblems', 'important'])
+            subprocess.Popen.wait(proc)
+            os.utime(path, None)
+        except:
+            error('Unable to add emblem \'important\' on {}'.format(path))
+
+    else:
+        try:
+            # Remove important nautilus emblem
+            proc = subprocess.Popen(['/usr/bin/gvfs-set-attribute', os.path.realpath(path), '-t', 'unset',
+                'metadata::emblems'], stdout=subprocess.PIPE)
+            subprocess.Popen.wait(proc)
+            os.utime(path, None)
+        except:
+            error('Unable to remove emblem on {}'.format(path))
+
 def path_is_parent(parent, child):
     """Check if a child file/path is in a parent folder/path."""
 
@@ -305,14 +327,8 @@ def change_file(path, trusted):
                 safe_chmod(path, orig_perms,
                     'Unable to set original perms. on {}'.format(path))
 
-        try:
-            # Remove important nautilus emblem
-            proc = subprocess.Popen(['/usr/bin/gvfs-set-attribute', path, '-t', 'unset',
-                'metadata::emblems'], stdout=subprocess.PIPE)
-            subprocess.Popen.wait(proc)
-            os.utime(path, None)
-        except:
-            error('Unable to remove emblem on {}'.format(path))
+        # Remove visual attributes
+        set_visual_attributes(path, False)
 
     else:
         # Set file to untrusted
@@ -328,14 +344,8 @@ def change_file(path, trusted):
                 format(path))
             sys.exit(65)
 
-        try:
-            proc = subprocess.Popen(['/usr/bin/gvfs-set-attribute', path, '-t', 'stringv',
-                'metadata::emblems', 'important'])
-            subprocess.Popen.wait(proc)
-            os.utime(path, None)
-        except:
-            error('Unable to add emblem \'important\' on {}'.format(path))
-
+        # Add visual attributes
+        set_visual_attributes(path, True)
 
 def change_folder(path, trusted):
     """Change the trust state of a folder"""
@@ -381,6 +391,9 @@ def change_folder(path, trusted):
 
         file.truncate()
         file.close()
+
+        # Remove visual attributes
+        set_visual_attributes(path, False)
     else:
         # Set folder to untrusted
         # AKA add path to untrusted paths list
@@ -403,6 +416,9 @@ def change_folder(path, trusted):
 
         file.truncate()
         file.close()
+
+        # Add visual attributes
+        set_visual_attributes(path, True)
 
 def main():
     """Read in from the command line and call dependent functions"""
