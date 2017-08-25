@@ -37,7 +37,7 @@ OPTIONS
     Display the trust level of the file or folder. This is the default action.
 -C, --check-multiple                 
     Returns 1 if at least one path is untrusted.
--C, --check-multiple-all-untrusted   
+-D, --check-multiple-all-untrusted   
     Check trust for multiple paths. Returns 1 if and only if ALL paths are
     untrusted.
 -u, --untrusted                      
