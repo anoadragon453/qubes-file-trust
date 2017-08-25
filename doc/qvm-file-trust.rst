@@ -27,7 +27,7 @@ A file is considered trusted unless:
    can be configured in /etc/qubes/always-open-in-dispvm.phrase
 
 A '-' character can be placed in front of a path in the local list to override
-a path listed in the local list.
+a path listed in the global list.
 
 OPTIONS
 =======
