@@ -39,7 +39,7 @@ ORIG_PERMISSIONS=$(stat -c "%a" "${1}")
 chmod 0644 "${1}"
 
 # Open in disposableVM
-bash qvm-open-in-vm '$dispvm' "${1}"
+sh /usr/bin/qvm-open-in-vm '$dispvm' "${1}"
 
 # Mark the file as untrusted once again
 qvm-file-trust -u -q "${1}"
