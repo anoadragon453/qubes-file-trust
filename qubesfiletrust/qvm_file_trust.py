@@ -42,9 +42,9 @@ def qprint(print_string, stderr):
 
     if not OUTPUT_QUIET:
         if stderr:
-            print(print_string)
-        else:
             print(print_string, file=sys.stderr)
+        else:
+            print(print_string)
 
 def error(error_string):
     """Print a string to stdout prepended with an error phrase."""
