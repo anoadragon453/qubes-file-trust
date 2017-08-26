@@ -1,0 +1,15 @@
+[Desktop Entry]
+Actions=QvmSetUntrusted;QvmSetTrusted;
+Type=Service
+X-KDE-ServiceTypes=KonqPopupMenu/Plugin,inode/directory
+X-KDE-Submenu=DisposableVM options
+
+[Desktop Action QvmSetTrusted]
+Exec=/usr/bin/qvm-file-trust -tq %U
+Icon=kget
+Name=Mark as trusted
+
+[Desktop Action QvmSetUntrusted]
+Exec=/usr/bin/qvm-file-trust -uq %U
+Icon=kget
+Name=Mark as untrusted

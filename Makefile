@@ -8,9 +8,6 @@ compile:
 	$(CXX) $(CXXFLAGS) -o qubes-trust-daemon qubes-trust-daemon.cpp
 
 install:
-	# Generic file handler for untrusted files
-	$(INSTALL_DATA) qvm-dvm-trust.desktop $(DESTDIR)/usr/share/applications/qvm-dvm-trust.desktop
-
 	# Dolphin context menus
 	$(INSTALL_PROGRAM) qvm-trust-file.desktop $(DESTDIR)/usr/share/kde4/services/qvm-trust-file.desktop
 	$(INSTALL_DATA) qvm-trust-folder.desktop $(DESTDIR)/usr/share/kde4/services/qvm-trust-folder.desktop

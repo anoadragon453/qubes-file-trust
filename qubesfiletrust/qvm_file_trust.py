@@ -57,6 +57,14 @@ def serror(error_string):
 
     qprint('Error: {}'.format(error_string), True)
 
+def check_abs(path):
+    """Checks if a path is absolute, if not, notify to stderr."""
+    if os.path.isabs(path):
+        return True
+
+    serror('rule in global list not absolute: {}'.format(path))
+    return False
+
 def retrieve_untrusted_folders():
     """Compile the list of untrusted folder paths from the following files:
 
@@ -72,21 +80,21 @@ def retrieve_untrusted_folders():
             for line in global_list.readlines():
                 line = line.rstrip()
 
+                if line is "":
+                    continue
+
                 # Ignore file comments
                 if not line.startswith('#'):
                     # Remove any '/'s on the end of the path
                     line = os.path.normpath(line)
 
                     # Lines prepended with - shouldn't go in the global list
-                    # Just remove
+                    # Just remove -
                     if line.startswith('-'):
-                        # Expand any ~'s in paths to /home/<current user>/
-                        # before adding
-                        expanded_path = os.path.expanduser(line[1:])
-                        untrusted_paths.append(expanded_path)
-                    else:
-                        expanded_path = os.path.expanduser(line)
-                        untrusted_paths.add(expanded_path)
+                        line = line[1:]
+
+                    if check_abs(line):
+                        untrusted_paths.add(line)
 
     except:
         serror('Unable to open global untrusted folder description: {}'.
@@ -98,6 +106,9 @@ def retrieve_untrusted_folders():
             for line in local_list.readlines():
                 line = line.rstrip()
 
+                if line is "":
+                    continue
+
                 # Ignore file comments
                 if not line.startswith('#'):
                     # Remove any '/'s on the end of the path
@@ -107,11 +118,12 @@ def retrieve_untrusted_folders():
                     if line.startswith('-'):
                         # Remove any mention of this path from the existing 
                         # list later
-                        expanded_path = os.path.expanduser(line[1:])
-                        untrusted_paths.remove(expanded_path)
+                        if check_abs(line[1:]):
+                            untrusted_paths.remove(line[1:])
                     else:
-                        expanded_path = os.path.expanduser(line)
-                        untrusted_paths.add(expanded_path)
+                        print('!!Checking abs: {}'.format(line))
+                        if check_abs(line):
+                            untrusted_paths.add(line)
 
     except:
         serror('Unable to open local untrusted folder description: {}'.
