@@ -469,8 +469,6 @@ def main():
 
     # Determine which action to take for each given path
     for path in args.paths:
-        path = os.path.expanduser(path)
-        path = os.path.abspath(path)
         if not (args.check or args.trusted or args.untrusted) \
             or args.check:
             if (not args.check_multiple_all_untrusted and \
