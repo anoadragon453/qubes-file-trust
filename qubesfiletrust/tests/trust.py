@@ -28,13 +28,13 @@ import xattr
 import sys
 import io
 import os
-import qubesfiletrust.qvm_file_trust
+import qubesfiletrust.qvm_file_trust as qvm_file_trust
 
 user_home = os.path.expanduser('~')
 
 class TC_00_trust(unittest.TestCase):
 
-    @unittest.mock.patch('qvm-file-trust.open', 
+    @unittest.mock.patch('qubesfiletrust.qvm_file_trust.open', 
             new_callable=unittest.mock.mock_open())
     def test_000_retrieve_folders(self, list_mock):
         """Create a mock global and local list and check resulting rules.
@@ -73,7 +73,7 @@ class TC_00_trust(unittest.TestCase):
                     '/home/user/terrible files',
                     '/home/user/my way too long path name with spaces']])
 
-    @unittest.mock.patch('qvm-file-trust.open', 
+    @unittest.mock.patch('qubesfiletrust.qvm_file_trust.open', 
             new_callable=unittest.mock.mock_open())
     def test_001_retrieve_folders_override(self, list_mock):
         """Create a mock global and local list and check resulting rules.
@@ -104,7 +104,8 @@ class TC_00_trust(unittest.TestCase):
     def test_010_check_read_attribute_success(self):
         """Check whether our untrusted attribute is successfully found"""
         xattr.get_all = unittest.mock.MagicMock(
-                return_value=[(b'user.qubes.untrusted', b'true'), (b'user.something.else', b'false')])
+                return_value=[(b'user.qubes.untrusted', b'true'), 
+                              (b'user.something.else', b'false')])
         os.chmod = unittest.mock.MagicMock()
 
         test_result = False
@@ -127,7 +128,7 @@ class TC_00_trust(unittest.TestCase):
         except SystemExit as err: 
             self.fail('System Exit caught: {}'.format(err))
 
-    @unittest.mock.patch('qvm-file-trust.open', 
+    @unittest.mock.patch('qubesfiletrust.qvm_file_trust.open', 
             new_callable=unittest.mock.mock_open())
     def test_020_check_untrusted_path_path_based(self, list_mock):
         """Check if a path is untrusted based on untrusted folders lists"""
@@ -167,12 +168,12 @@ class TC_00_trust(unittest.TestCase):
         finally:
             self.assertFalse(test_result)
 
-    @unittest.mock.patch('qvm-file-trust.open', 
+    @unittest.mock.patch('qubesfiletrust.qvm_file_trust.open', 
             new_callable=unittest.mock.mock_open())
     def test_021_check_untrusted_path_phrase_based(self, list_mock):
         """Check if path is untrusted based on untrusted phrase"""
         dummy_untrusted_phrase = '.untrusted'
-        dummy_file_data = '~/Downloads\n~/QubesIncoming'
+        dummy_file_data = '/home/user/Downloads\n/home/user/QubesIncoming'
 
         handlers = (unittest.mock.mock_open(
                         read_data=dummy_file_data
@@ -248,7 +249,6 @@ class TC_00_trust(unittest.TestCase):
 
         self.assertEqual(cm.exception.code, 77)
 
-    # TODO: Check xattr.setxattr actually works...
     def test_031_xattr_called_when_setting_file_trust(self):
         """Ensure our attribute is added/removed when setting file trust"""
         os.chmod = unittest.mock.MagicMock()
@@ -283,7 +283,7 @@ class TC_10_misc(unittest.TestCase):
         captured_obj = io.StringIO()
         sys.stdout = captured_obj
         try:
-            qvm_file_trust.qprint('Test string!')
+            qvm_file_trust.qprint('Test string!', False)
         finally:
             sys.stdout = sys.__stdout__
             self.assertEqual(captured_obj.getvalue(), '')
@@ -292,7 +292,7 @@ class TC_10_misc(unittest.TestCase):
         captured_obj = io.StringIO()
         sys.stdout = captured_obj
         try:
-            qvm_file_trust.qprint('Test string!')
+            qvm_file_trust.qprint('Test string!', False)
         finally:
             sys.stdout = sys.__stdout__
             self.assertEqual(captured_obj.getvalue(), 'Test string!\n')
