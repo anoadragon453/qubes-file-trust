@@ -75,8 +75,7 @@ def retrieve_untrusted_folders():
                 # Ignore file comments
                 if not line.startswith('#'):
                     # Remove any '/'s on the end of the path
-                    if line.endswith('/'):
-                        line = line[:-1]
+                    line = os.path.normpath(line)
 
                     # Lines prepended with - shouldn't go in the global list
                     # Just remove
@@ -102,8 +101,7 @@ def retrieve_untrusted_folders():
                 # Ignore file comments
                 if not line.startswith('#'):
                     # Remove any '/'s on the end of the path
-                    if line.endswith('/'):
-                        line = line[:-1]
+                    line = os.path.normpath(line)
 
                     # Support explicitly trusting folders by prepending with -
                     if line.startswith('-'):
@@ -273,8 +271,7 @@ def check_folder(path, multiple_paths):
     """Check if the given folder is trusted"""
 
     # Remove '/' from end of path
-    if path.endswith('/'):
-        path = path[:-1]
+    path = os.path.normpath(path)
 
     global all_paths_are_untrusted
     global untrusted_path_found
@@ -351,8 +348,7 @@ def change_folder(path, trusted):
     """Change the trust state of a folder"""
 
     # Remove '/' from end of path
-    if path.endswith('/'):
-        path = path[:-1]
+    path = os.path.normpath(path)
 
     try:
         # Create the ~/.config/qubes folder if it doesn't exist
