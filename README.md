@@ -1,4 +1,4 @@
-# Qubes MIME Handlers
+# Qubes File Trust
 
 Adds ability to set trust level for files and folders. Untrusted files will be automatically opened in a disposableVM. 
 
