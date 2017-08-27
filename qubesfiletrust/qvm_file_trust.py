@@ -30,12 +30,14 @@ import os
 import xattr
 import subprocess
 
-OUTPUT_QUIET = False
+UNTRUSTED_PHRASE = ""
+PHRASE_FILE_LOC = '/etc/qubes/always-open-in-dispvm.phrase'
 GLOBAL_FOLDER_LOC = '/etc/qubes/always-open-in-dispvm.list'
 LOCAL_FOLDER_LOC = os.path.expanduser('~') + '/.config/qubes/always-open-in-dispvm.list'
-PHRASE_FILE_LOC = '/etc/qubes/always-open-in-dispvm.phrase'
-untrusted_path_found = False
-all_paths_are_untrusted = True
+
+OUTPUT_QUIET = False
+UNTRUSTED_PATH_FOUND = False
+ALL_PATHS_ARE_UNTRUSTED = True
 
 def qprint(print_string, stderr):
     """Will only print if '--quiet' is not set."""
@@ -228,21 +230,8 @@ def is_untrusted_path(path):
 
     # Check if untrusted phrase (/etc/qubes/always-open-in-dispvm.phrase) is
     # present in file path
-    try:
-        with open(PHRASE_FILE_LOC) as phrase_file:
-            for line in phrase_file.readlines():
-                # Ignore comments
-                if not line.rstrip().startswith('#'):
-                    if line.rstrip().upper() is path.upper():
-                        return True
-
-                    # Only check for first non-comment in file
-                    break
-    except:
-        serror('Unable to open phrase file: {}'.
-                format(PHRASE_FILE_LOC))
-
-    return False
+    global UNTRUSTED_PHRASE
+    return UNTRUSTED_PHRASE.upper() in path.upper()
 
 def check_file(path, multiple_paths):
     """Check if the given file is trusted"""
@@ -261,20 +250,20 @@ def check_file(path, multiple_paths):
             'Could not unlock {} for reading'.format(path))
 
     # File is readable, attempt to check trusted status
-    global untrusted_path_found
-    global all_paths_are_untrusted
+    global UNTRUSTED_PATH_FOUND
+    global ALL_PATHS_ARE_UNTRUSTED
     if is_untrusted_xattr(path, orig_perms):
         # Print out which paths are untrusted if we're checking multiple paths
         if multiple_paths:
             qprint('Untrusted: {}'.format(path), False)
-            untrusted_path_found = True
+            UNTRUSTED_PATH_FOUND = True
         else:
             qprint('File is untrusted', False)
             sys.exit(1)
     else:
         # Don't return until we've checked all paths
         if multiple_paths:
-            all_paths_are_untrusted = False
+            ALL_PATHS_ARE_UNTRUSTED = False
         else:
             qprint('File is trusted', False)
             sys.exit(0)
@@ -285,22 +274,22 @@ def check_folder(path, multiple_paths):
     # Remove '/' from end of path
     path = os.path.normpath(path)
 
-    global all_paths_are_untrusted
-    global untrusted_path_found
+    global ALL_PATHS_ARE_UNTRUSTED
+    global UNTRUSTED_PATH_FOUND
 
     # Check if path is in the untrusted paths list
     if is_untrusted_path(path):
         # Print out which paths are untrusted if we're checking multiple paths
         if multiple_paths:
             qprint('Untrusted: {}'.format(path), False)
-            untrusted_path_found = True
+            UNTRUSTED_PATH_FOUND = True
         else:
             qprint('Folder is untrusted', False)
             sys.exit(1)
     else:
         # Don't return until we've checked all paths
         if multiple_paths:
-            all_paths_are_untrusted = False
+            ALL_PATHS_ARE_UNTRUSTED = False
         else:
             qprint('Folder is trusted', False)
             sys.exit(0)
@@ -463,6 +452,22 @@ def main():
     global OUTPUT_QUIET
     OUTPUT_QUIET = args.quiet
 
+    # Grab and cache untrusted phrase
+    global UNTRUSTED_PHRASE
+    try:
+        with open(PHRASE_FILE_LOC) as phrase_file:
+            for line in phrase_file.readlines():
+                line = line.rstrip()
+
+                # Ignore comments
+                if not line.startswith('#'):
+                    UNTRUSTED_PHRASE = line
+                    break
+
+    except:
+        serror('Unable to open phrase file: {}'.
+                format(PHRASE_FILE_LOC))
+
     # Error checking
     if args.trusted and args.untrusted:
         error('--trusted and --untrusted options cannot both be set')
@@ -512,12 +517,12 @@ def main():
 
     if args.check_multiple or args.check_multiple_all_untrusted:
         # Check whether we found an untrusted file during a check-multiple run
-        global untrusted_path_found
-        global all_paths_are_untrusted
-        if untrusted_path_found == True:
+        global UNTRUSTED_PATH_FOUND
+        global ALL_PATHS_ARE_UNTRUSTED
+        if UNTRUSTED_PATH_FOUND == True:
             # If we're checking if ALL files are untrusted, only return 1 if
             # all files are indeed untrusted
-            if args.check_multiple_all_untrusted and all_paths_are_untrusted:
+            if args.check_multiple_all_untrusted and ALL_PATHS_ARE_UNTRUSTED:
                 qprint('All paths untrusted', False)
                 sys.exit(1)
             else:
