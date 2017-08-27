@@ -8,35 +8,8 @@ compile:
 	$(CXX) $(CXXFLAGS) -o qubes-trust-daemon qubes-trust-daemon.cpp
 
 install:
-	# Dolphin context menus
-	$(INSTALL_PROGRAM) qvm-trust-file.desktop $(DESTDIR)/usr/share/kde4/services/qvm-trust-file.desktop
-	$(INSTALL_DATA) qvm-trust-folder.desktop $(DESTDIR)/usr/share/kde4/services/qvm-trust-folder.desktop
-
-	# Nautilus context menus
-	$(INSTALL_DATA) qvm_trust.py $(DESTDIR)/usr/share/nautilus-python/extensions/qvm_trust.py
-
-	# Utilities
 	$(INSTALL_PROGRAM) qvm-open-trust-based $(DESTDIR)/usr/bin/qvm-open-trust-based
-	if [ -f "/etc/debian_version" ]; then \
-		$(PYTHON) setup.py install --root /$(DESTDIR) --install-layout=deb; \
-	else \
-		$(PYTHON) setup.py install --root /$(DESTDIR); \
-	fi
-
-	# Images
-	$(INSTALL_DATA) images/qubes-checkmark.png $(DESTDIR)/usr/share/pixmaps/qubes-checkmark.png
-	$(INSTALL_DATA) images/qubes.png $(DESTDIR)/usr/share/pixmaps/qubes.png
-
-	# Untrusted folders list
-	mkdir -p $(HOME)/.config/qubes
-	touch $(HOME)/.config/qubes/always-open-in-dispvm.list
-
-	# Raise max inotify watch limit
-	sysctl fs.inotify.max_user_watches=524288
-	if ! grep -q "fs.inotify.max_user_watches" "/rw/config/rc.local"; then \
-		echo "sysctl fs.inotify.max_user_watches=524288" >> /rw/config/rc.local; \
-	fi
-	chmod +x /rw/config/rc.local
+	$(PYTHON) setup.py install --root /$(DESTDIR) --force $(EX_SETUP_OPTS)
 
 clean:
-	rm -f qubes-trust-daemon
+	rm -f qubes-trust-daemon 
