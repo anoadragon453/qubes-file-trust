@@ -476,6 +476,10 @@ def main():
         error('--trusted or --untrusted '
               'cannot be set while --is-trusted is set')
         sys.exit(64)
+    if args.check_multiple and args.check_multiple_all_untrusted:
+        error('--check_multiple and --check_multiple_all_untrusted '
+              'options cannot both be set')
+        sys.exit(64)
 
     if args.printfolders:
         print_folders()
@@ -522,13 +526,17 @@ def main():
         if UNTRUSTED_PATH_FOUND == True:
             # If we're checking if ALL files are untrusted, only return 1 if
             # all files are indeed untrusted
-            if args.check_multiple_all_untrusted and ALL_PATHS_ARE_UNTRUSTED:
-                qprint('All paths untrusted', False)
-                sys.exit(1)
-            else:
-                qprint('At least one path is trusted', False)
-                sys.exit(0)
+            if args.check_multiple_all_untrusted:
+                if ALL_PATHS_ARE_UNTRUSTED:
+                    qprint('All paths untrusted', False)
+                    sys.exit(1)
+                else:
+                    qprint('At least one path is trusted', False)
+                    sys.exit(0)
 
+            # If we're just check_multiple and we found at least one path
+            # that is untrusted, return 1
+            qprint('At least one path is untrusted', False)
             sys.exit(1)
         else:
             qprint('All paths are trusted', False)
