@@ -154,7 +154,7 @@ class QubesTrustMenu(GObject.GObject, Nautilus.MenuProvider):
                 Nautilus.MenuItem(name='QubesMenuProvider::QubesTrustMenu',
                                   label='Do Not Always Open In DisposableVM',
                                   tip='',
-                                  icon='qubes-checkmark')
+                                  icon='')
 
         else:
             # If at least one folder is still trusted, set all of them as
