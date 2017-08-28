@@ -64,7 +64,7 @@ def check_abs(path):
     if os.path.isabs(path):
         return True
 
-    serror('rule in global list not absolute: {}'.format(path))
+    serror('rule not absolute: {}'.format(path))
     return False
 
 def retrieve_untrusted_folders():
