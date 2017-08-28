@@ -30,6 +30,28 @@ Follow the progress [here](https://blog.amorgan.xyz/tag_gsoc-2017.html)!
 
 `g++` (`gcc-c++` on fedora) for compilation of qubes-trust-daemon
 
+## Install
+
+Grab the requirements listed above then:
+
+```
+make daemon
+sudo make install
+```
+
+## Unit tests
+
+Unit tests are included in the tests folder.
+
+Run them with:
+
+```
+make tests
+```
+
+GUI-based tests are done with the
+[Dogtail](https://gitlab.com/dogtail/dogtail) library.
+
 ## File Manager Context Menus
 
 The context menus are defined as a python script for Nautilus (stored in
@@ -57,25 +79,3 @@ settings on any files created inside of folders marked with a specific trust
 level. For example, if I mark a folder as `untrusted`, the daemon should
 automatically mark all new and existing files and folders within as `untrusted`
 as well.
-
-## Unit tests
-
-Unit tests are included in the tests folder.
-
-Run them with:
-
-```
-make tests
-```
-
-GUI-based tests are done with the
-[Dogtail](https://gitlab.com/dogtail/dogtail) library.
-
-## Install
-
-Grab the requirements listed above then:
-
-```
-make daemon
-sudo make install
-```
