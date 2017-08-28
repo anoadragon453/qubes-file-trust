@@ -19,6 +19,9 @@ install:
 
 	$(MAKE) -C doc install
 
+tests:
+	$(MAKE) -C qubesfiletrust -B tests PYTHON=$(PYTHON)
+
 %.1: %.rst
 	$(PANDOC) $< > $@
 
