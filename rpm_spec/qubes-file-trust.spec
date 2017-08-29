@@ -36,23 +36,20 @@ BuildRequires:	pandoc
 Requires:	python3-pyxattr
 Requires:	gvfs-client
 
-Source:		qubes-file-trust.tgz
+%define _builddir %(pwd)
 
 %description
 Set of tools to manipulate file trust levels in Qubes
-
-%prep
 
 %build
 make clean
 make -B build
 
 %install
-# Change buildroot to $RPM_BUILD_ROOT?
-make install DESTDIR=%{buildroot}
+make install DESTDIR=$RPM_BUILD_ROOT
 
 %clean
-rm -rf %{buildroot}
+rm -rf $RPM_BUILD_ROOT
 
 %files
 %{_bindir}/qvm-file-trust
