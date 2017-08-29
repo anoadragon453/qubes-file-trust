@@ -10,7 +10,7 @@ Follow the progress [here](https://blog.amorgan.xyz/tag_gsoc-2017.html)!
 
 [anoadragon453/qubes-dolphin-trust-activities](https://github.com/anoadragon453/qubes-dolphin-trust-activities)
 
-[anoadragon453/qubes-nautilus-trust-extensions](https://github.com/anoadragon453/qubes-nautilus-trust-extensions)
+[anoadragon453/qubes-nautilus-trust-extension](https://github.com/anoadragon453/qubes-nautilus-trust-extension)
 
 [anoadragon453/nautilus](https://github.com/anoadragon453/nautilus)
 
