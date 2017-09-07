@@ -399,43 +399,41 @@ def change_folder(path, trusted):
             sys.exit(72)
 
         try:
-            global_rules = open(GLOBAL_FOLDER_LOC, 'r')
+            with open(GLOBAL_FOLDER_LOC, 'r') as global_rules:
+                # Check if the untrusted rule is in the global list
+                # If it is, then add a specific rule to the local list
+                # explicitly granting it trust (prepended with -)
+                for line in global_rules.readlines():
+                    if line.rstrip() == path:
+                        local_rules.write('-' + path + '\n')
+                        found_path = True
+                        break
         except:
             error('Unable to read global untrusted folder: {}'.
                     format(GLOBAL_FOLDER_LOC))
             sys.exit(72)
 
-        # Check if the untrusted rule is in the global list
-        # If it is, then add a specific rule to the local list
-        # explicitly granting it trust (prepended with -)
-        for line in global_rules.readlines():
-            if line.rstrip() == path:
-                local_rules.write('-' + path + '\n')
-                found_path = True
-                break
+        local_rules.close()
 
         if not found_path:
             error("Requested to trust but path not untrusted: {}".format(path))
 
         # Remove visual attributes
         set_visual_attributes(path, False)
-
-        global_rules.close()
-        local_rules.close()
     else:
         # Set folder to untrusted
         # AKA add path to untrusted paths list
 
         # Ensure path isn't already in untrusted paths list
         try:
-            local_rules = open(LOCAL_FOLDER_LOC, 'w')
-            for line in local_lines:
-                line = line.rstrip()
-                if line == path:
-                    # Already untrusted, just return
-                    serror('Folder was already untrusted: {}'.format(path))
-                elif not (line.startswith('-') and line[1:] == path):
-                    local_rules.write(line + '\n')
+            with open(LOCAL_FOLDER_LOC, 'w') as local_rules:
+                for line in local_lines:
+                    line = line.rstrip()
+                    if line == path:
+                        # Already untrusted, just return
+                        serror('Folder was already untrusted: {}'.format(path))
+                    elif not (line.startswith('-') and line[1:] == path):
+                        local_rules.write(line + '\n')
 
         except:
             error('Unable to read local untrusted folder: {}'.
