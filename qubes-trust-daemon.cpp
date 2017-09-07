@@ -141,6 +141,7 @@ void mark_files_as_untrusted(const std::set<std::string> file_paths) {
 
                 // Unreachable if no error
                 perror("execl qvm-file-trust failed");
+                exit(1);
             case -1:
                 // Fork failed
                 perror("fork failed");
