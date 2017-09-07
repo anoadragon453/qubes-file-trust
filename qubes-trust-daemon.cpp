@@ -1,23 +1,23 @@
 /*
-* The Qubes OS Project, http://www.qubes-os.org
-*
-* Copyright (C) 2017 Andrew Morgan <andrew@amorgan.xyz>
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
-* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-*
-*/
+ * The Qubes OS Project, http://www.qubes-os.org
+ *
+ * Copyright (C) 2017 Andrew Morgan <andrew@amorgan.xyz>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *
+ */
 
 #include <set>
 #include <string>
@@ -67,12 +67,11 @@
 #endif
 
 #define UNTR_MARK_PERIOD 1  // Period to mark buffer of untrusted files
-#define MAX_LEN 1024		// Path length for a directory
-#define MAX_EVENTS 1024		// Max. number of events to process at one go
+#define MAX_LEN 1024        // Path length for a directory
+#define MAX_EVENTS 1024     // Max. number of events to process at one go
 #define MAX_ARG_LEN 500     // Maximum amount of args passed to qvm-file-trust
-#define LEN_NAME 16			// Assuming filename length won't exceed 16 bytes
 #define EVENT_SIZE  (sizeof(struct inotify_event))	     // Size of one event
-#define BUF_LEN     (MAX_EVENTS*(EVENT_SIZE + LEN_NAME)) // Event data
+#define BUF_LEN     (MAX_EVENTS*(EVENT_SIZE + NAME_MAX + 1)) // Event data buffer
 
 int watch_fd;
 
@@ -93,7 +92,7 @@ std::set<std::string> untrusted_buffer;
  */
 void mark_files_as_untrusted(const std::set<std::string> file_paths) {
     // Return if given empty set
-    if (file_paths.size() <= 0) {
+    if (file_paths.empty()) {
         return;
     }
 
@@ -109,7 +108,7 @@ void mark_files_as_untrusted(const std::set<std::string> file_paths) {
 
     // Iterate through file path set and add to argv of qvm-file-trust
     const char* file_path;
-    
+
     // Loop through list of arguments, processing MAX_ARG_LEN args each time
     int iterations = file_paths.size() / MAX_ARG_LEN;
     std::set<std::string>::iterator it = file_paths.begin();
@@ -141,17 +140,14 @@ void mark_files_as_untrusted(const std::set<std::string> file_paths) {
                 execv("/usr/bin/qvm-file-trust", (char**) qvm_argv);
 
                 // Unreachable if no error
-                perror("execl qvm-file-trust");
-                exit(1);
+                perror("execl qvm-file-trust failed");
             case -1:
                 // Fork failed
                 perror("fork failed");
-                exit(1);
             default:
                 // Fork succeeded, and we got our pid, wait until child exits
                 if (waitpid(child_pid, &exit_code, 0) == -1) {
                     perror("wait for qvm-file-trust failed");
-                    exit(1);
                 }
         }
     }
@@ -164,60 +160,60 @@ void mark_files_as_untrusted(const std::set<std::string> file_paths) {
  * Should call above method after compiling a list of all files to set as untrusted
  */
 int watch_dir(const char *filepath, const struct stat *info,
-              const int typeflag, struct FTW *pathinfo) {
+        const int typeflag, struct FTW *pathinfo) {
     // Watch directories, set files as untrusted
-	struct stat s;
-	if(stat(filepath, &s) == 0) {
-		if(!(s.st_mode & S_IFDIR)) {
+    struct stat s;
+    if(stat(filepath, &s) == 0) {
+        if(!(s.st_mode & S_IFDIR)) {
             // File, set as untrusted
             untrusted_buffer.insert(filepath);
-			return 0;
-		}
-	}
-	else {
-		// Error reading
-		return 1;
-	}
+            return 0;
+        }
+    }
+    else {
+        // Error reading
+        return 1;
+    }
 
     std::cout << "Placing watch on " << filepath
         << " and subdirectories" << std::endl;
 
     // Add watch to starting directory
     int wd = inotify_add_watch(watch_fd, filepath, 
-		IN_CREATE | IN_MODIFY | IN_DELETE | IN_MOVED_TO | IN_MOVED_FROM);
+            IN_CREATE | IN_MODIFY | IN_DELETE | IN_MOVED_TO | IN_MOVED_FROM);
     if (wd == -1) {
         printf("Couldn't add watch to %s\n", filepath);
     } else {
         printf("%d Watching:: %s\n", wd, filepath);
-        
+
         // Add watch descriptor and filepath to global watchtable
         std::string filepath_string = filepath;
         std::pair<int, std::string> watch_pair(wd, filepath_string);
         watch_table.insert(watch_pair);
     }
 
-	return 0;
+    return 0;
 }
 
 /*
  * Walks a filepath for all files and directories contained within
  */
 int place_watch_on_dir_and_subdirs(const char* const filepath) {
-	int result;
+    int result;
 
     // Check for incorrect path
     if (filepath == NULL || *filepath == '\0') {
-		return errno = EINVAL;
+        return errno = EINVAL;
     }
 
-	// Run watch_dir on directory and subdirectories
-	result = nftw(filepath, watch_dir, USE_FDS, FTW_PHYS);
+    // Run watch_dir on directory and subdirectories
+    result = nftw(filepath, watch_dir, USE_FDS, FTW_PHYS);
 
-	if (result >= 0) {
-		errno = result;
-	}
+    if (result >= 0) {
+        errno = result;
+    }
 
-	return errno;
+    return errno;
 }
 
 /* 
@@ -254,10 +250,10 @@ void keep_watch_on_dirs(const int fd) {
 
                 if (event->mask & IN_MOVED_TO) {
                     if (event->mask & IN_ISDIR) {
-                        printf("%d DIR::%s CREATED\n", event->wd, fullpath.c_str());
+                        printf("%d DIR::%s MOVED IN\n", event->wd, fullpath.c_str());
                         place_watch_on_dir_and_subdirs(fullpath.c_str());
                     } else {
-                        printf("%d FILE::%s CREATED\n", event->wd, fullpath.c_str());
+                        printf("%d FILE::%s MOVED IN\n", event->wd, fullpath.c_str());
                         // Mark file to be set as untrusted
                         untrusted_buffer.insert(fullpath);
                     }
@@ -266,7 +262,7 @@ void keep_watch_on_dirs(const int fd) {
 
             if (event->mask & IN_MOVED_FROM) {
                 if (event->mask & IN_ISDIR) {
-                    printf("%d REMOVE DIR::%s\n", event->wd, fullpath.c_str());
+                    printf("%d DIR::%s MOVED OUT\n", event->wd, fullpath.c_str());
 
                     // TODO: Recursive rm watch
                     inotify_rm_watch(watch_fd, event->wd);
