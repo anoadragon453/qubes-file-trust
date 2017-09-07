@@ -219,6 +219,12 @@ def is_untrusted_path(path):
     # Check if untrusted phrase (/etc/qubes/always-open-in-dispvm.phrase) is
     # present in file path
     global UNTRUSTED_PHRASE
+
+    # Check if string is empty
+    if not UNTRUSTED_PHRASE:
+        return False
+
+    # Otherwise check if path contains untrusted phrase
     return UNTRUSTED_PHRASE.upper() in path.upper()
 
 def check_file(path, multiple_paths):
@@ -511,6 +517,7 @@ def main():
     for path in args.paths:
         # Get absolute path
         path = os.path.abspath(path)
+        print("Got path: {}".format(path))
 
         if not (args.check or args.trusted or args.untrusted) \
             or args.check:
