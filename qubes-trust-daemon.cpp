@@ -145,10 +145,12 @@ void mark_files_as_untrusted(const std::set<std::string> file_paths) {
             case -1:
                 // Fork failed
                 perror("fork failed");
+                return;
             default:
                 // Fork succeeded, and we got our pid, wait until child exits
                 if (waitpid(child_pid, &exit_code, 0) == -1) {
                     perror("wait for qvm-file-trust failed");
+                    return;
                 }
         }
     }
