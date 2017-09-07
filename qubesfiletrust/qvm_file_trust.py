@@ -123,7 +123,6 @@ def retrieve_untrusted_folders():
                         if check_abs(line[1:]):
                             untrusted_paths.remove(line[1:])
                     else:
-                        print('!!Checking abs: {}'.format(line))
                         if check_abs(line):
                             untrusted_paths.add(line)
 
@@ -353,66 +352,99 @@ def change_folder(path, trusted):
 
     try:
         # Create the ~/.config/qubes folder if it doesn't exist
-        home_dir = os.path.expanduser('~')
-        if not os.path.exists(home_dir + '/.config'):
-            os.mkdir(home_dir + '/.config')
-        if not os.path.exists(home_dir + '/.config/qubes'):
-            os.mkdir(home_dir + '/.config/qubes')
+        try:
+            home_dir = os.path.expanduser('~')
+            os.makedirs(home_dir + '/.config/qubes')
+        except FileExistsError:
+            pass
 
         # Create the local file if it does not exist
         if not os.path.exists(LOCAL_FOLDER_LOC):
-            open(LOCAL_FOLDER_LOC, 'a').close()
+            try:
+                open(LOCAL_FOLDER_LOC, 'a').close()
+            except:
+                error('Unable to create local rules list: {}'.format(LOCAL_FOLDER_LOC))
     except:
         error('Could not create local rule list: {}'.format(
                 LOCAL_FOLDER_LOC))
         error('Check /home/<your user> folder exists...')
         sys.exit(72)
 
+    try:
+        with open(LOCAL_FOLDER_LOC, 'r') as local_rules:
+            local_lines = local_rules.readlines()
+    except:
+        error('Unable to read local untrusted folder: {}'.
+                format(LOCAL_FOLDER_LOC))
+        sys.exit(72)
+
     if trusted:
         # Set folder to trusted
         # AKA remove any mentions from untrusted paths list
+        # And add negative rule to local list if present in global
+
+        # Write back all lines to the file except ones containing our path
+        found_path = False
         try:
-            file = open(LOCAL_FOLDER_LOC, 'r+')
+            local_rules = open(LOCAL_FOLDER_LOC, 'w')
+            for line in local_lines:
+                line = line.rstrip()
+                if line == path or (line.startswith('-') and line[1:] == path):
+                    found_path = True
+                else:
+                    local_rules.write(line + '\n')
         except:
             error('Unable to read local untrusted folder: {}'.
                     format(LOCAL_FOLDER_LOC))
             sys.exit(72)
 
-        lines = file.readlines()
-        file.seek(0)
+        try:
+            global_rules = open(GLOBAL_FOLDER_LOC, 'r')
+        except:
+            error('Unable to read global untrusted folder: {}'.
+                    format(GLOBAL_FOLDER_LOC))
+            sys.exit(72)
 
-        # Write back all lines to the file except ones containing our path
-        for line in lines:
-            if line.rstrip() != path:
-                file.write(line)
+        # Check if the untrusted rule is in the global list
+        # If it is, then add a specific rule to the local list
+        # explicitly granting it trust (prepended with -)
+        for line in global_rules.readlines():
+            if line.rstrip() == path:
+                local_rules.write('-' + path + '\n')
+                found_path = True
+                break
 
-        file.truncate()
-        file.close()
+        if not found_path:
+            error("Requested to trust but path not untrusted: {}".format(path))
 
         # Remove visual attributes
         set_visual_attributes(path, False)
+
+        global_rules.close()
+        local_rules.close()
     else:
         # Set folder to untrusted
         # AKA add path to untrusted paths list
 
         # Ensure path isn't already in untrusted paths list
         try:
-            with open(LOCAL_FOLDER_LOC) as local_list:
-                for line in local_list:
-                    if line.rstrip() == path:
-                        # Already untrusted, just return
-                        return
+            local_rules = open(LOCAL_FOLDER_LOC, 'w')
+            for line in local_lines:
+                line = line.rstrip()
+                if line == path:
+                    # Already untrusted, just return
+                    serror('Folder was already untrusted: {}'.format(path))
+                elif not (line.startswith('-') and line[1:] == path):
+                    local_rules.write(line + '\n')
+
         except:
             error('Unable to read local untrusted folder: {}'.
                     format(LOCAL_FOLDER_LOC))
             sys.exit(72)
 
         # Append path to the bottom
-        file = open(LOCAL_FOLDER_LOC, 'ab')
-        file.write(bytes(path, 'UTF-8'))
-
-        file.truncate()
-        file.close()
+        with open(LOCAL_FOLDER_LOC, 'a') as local_rules:
+            local_rules.write(path + '\n')
 
         # Add visual attributes
         set_visual_attributes(path, True)
@@ -490,6 +522,9 @@ def main():
 
     # Determine which action to take for each given path
     for path in args.paths:
+        # Get absolute path
+        path = os.path.abspath(path)
+
         if not (args.check or args.trusted or args.untrusted) \
             or args.check:
             if (not args.check_multiple_all_untrusted and \
