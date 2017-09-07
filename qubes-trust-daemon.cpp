@@ -225,7 +225,7 @@ void keep_watch_on_dirs(const int fd) {
         int length = read(fd, buffer, BUF_LEN);
         int i = 0;
 
-        if (length < 0) {
+        if (length <= 0) {
             perror("read");
         }
 
