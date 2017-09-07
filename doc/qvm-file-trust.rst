@@ -13,9 +13,9 @@ SYNOPSIS
 DESCRIPTION
 ===========
 **qvm-file-trust** can check and modify the **trust level** of files and
-folders. A folder is considered untrusted if its absolute path lies in either
-the global untrusted folders list (/etc/qubes/always-open-in-dispvm.list) or
-the local list (~/.config/qubes/always-open-in-dispvm.list).  
+folders. A folder is considered untrusted if its path lies in either the global
+untrusted folders list (/etc/qubes/always-open-in-dispvm.list) or the local
+list (~/.config/qubes/always-open-in-dispvm.list).  
 
 A file is considered trusted unless:
 

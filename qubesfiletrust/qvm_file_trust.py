@@ -59,14 +59,6 @@ def serror(error_string):
 
     qprint('Error: {}'.format(error_string), True)
 
-def check_abs(path):
-    """Checks if a path is absolute, if not, notify to stderr."""
-    if os.path.isabs(path):
-        return True
-
-    serror('rule not absolute: {}'.format(path))
-    return False
-
 def retrieve_untrusted_folders():
     """Compile the list of untrusted folder paths from the following files:
 
@@ -95,8 +87,7 @@ def retrieve_untrusted_folders():
                     if line.startswith('-'):
                         line = line[1:]
 
-                    if check_abs(line):
-                        untrusted_paths.add(line)
+                    untrusted_paths.add(os.path.expanduser(line))
 
     except:
         serror('Unable to open global untrusted folder description: {}'.
@@ -120,11 +111,9 @@ def retrieve_untrusted_folders():
                     if line.startswith('-'):
                         # Remove any mention of this path from the existing 
                         # list later
-                        if check_abs(line[1:]):
-                            untrusted_paths.remove(line[1:])
+                        untrusted_paths.remove(os.path.expanduser(line[1:]))
                     else:
-                        if check_abs(line):
-                            untrusted_paths.add(line)
+                        untrusted_paths.add(os.path.expanduser(line))
 
     except:
         serror('Unable to open local untrusted folder description: {}'.
