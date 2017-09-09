@@ -517,7 +517,6 @@ def main():
     for path in args.paths:
         # Get absolute path
         path = os.path.abspath(path)
-        print("Got path: {}".format(path))
 
         if not (args.check or args.trusted or args.untrusted) \
             or args.check:
