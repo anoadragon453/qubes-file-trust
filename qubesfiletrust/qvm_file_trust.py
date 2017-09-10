@@ -151,26 +151,13 @@ def is_untrusted_xattr(path, orig_perms):
 
     except:
         error('Unable to read extended attributes of {}'.format(path))
-        safe_chmod(path, orig_perms,
-            'Unable to set original permissions of {}'.format(path))
         sys.exit(65)
 
     # Check for our custom qubes attribute
     untrusted_attribute = (b'user.qubes.untrusted', b'true')
-    if untrusted_attribute in file_xattrs:
-        # We found our attribute
 
-        # Return to original permissions
-        safe_chmod(path, orig_perms,
-            'Unable to set original permissions of {}'.format(path))
-        return True
-
-    # Return to original permissions
-    safe_chmod(path, orig_perms,
-        'Unable to set original permissions of {}'.format(path))
-
-    # We didn't find our attribute
-    return False
+    # Return whether we found our attribute
+    return (untrusted_attribute in file_xattrs)
 
 def set_visual_attributes(path, attributes_on):
     """Add visual attributes such as emblems and colors to files/folders"""
@@ -231,8 +218,31 @@ def is_untrusted_path(path):
     # Otherwise check if path contains untrusted phrase
     return UNTRUSTED_PHRASE.upper() in path.upper()
 
+def handle_trusted(path, multiple_paths, object_type, untrusted):
+    """Common code for when a file or folder is found trusted or untrusted"""
+
+    global ALL_PATHS_ARE_UNTRUSTED
+    global UNTRUSTED_PATH_FOUND
+
+    if multiple_paths:
+        qprint('{}: {}'.format(path,
+                               ("Untrusted" if untrusted else "Trusted")
+                               ), False)
+        if untrusted:
+            UNTRUSTED_PATH_FOUND = True
+        else:
+            ALL_PATHS_ARE_UNTRUSTED = False
+    else:
+        qprint('{} is {}'.format(object_type,
+                                 ("untrusted" if untrusted else "trusted")
+                                 ), False)
+        sys.exit((1 if untrusted else 0))
+
 def check_file(path, multiple_paths):
     """Check if the given file is trusted"""
+
+    global UNTRUSTED_PATH_FOUND
+    global ALL_PATHS_ARE_UNTRUSTED
 
     # Save the original permissions of the file.
     orig_perms = os.stat(path).st_mode
@@ -243,28 +253,16 @@ def check_file(path, multiple_paths):
             pass
 
     except IOError:
-        # Try to unlock file to get read access
-        safe_chmod(path, 0o644,
-            'Could not unlock {} for reading'.format(path))
+        # If file is not readable, assume untrusted
+        handle_trusted(path, multiple_paths, "File", True)
 
     # File is readable, attempt to check trusted status
-    global UNTRUSTED_PATH_FOUND
-    global ALL_PATHS_ARE_UNTRUSTED
     if is_untrusted_xattr(path, orig_perms):
         # Print out which paths are untrusted if we're checking multiple paths
-        if multiple_paths:
-            qprint('Untrusted: {}'.format(path), False)
-            UNTRUSTED_PATH_FOUND = True
-        else:
-            qprint('File is untrusted', False)
-            sys.exit(1)
+        handle_trusted(path, multiple_paths, "File", True)
     else:
         # Don't return until we've checked all paths
-        if multiple_paths:
-            ALL_PATHS_ARE_UNTRUSTED = False
-        else:
-            qprint('File is trusted', False)
-            sys.exit(0)
+        handle_trusted(path, multiple_paths, "File", False)
 
 def check_folder(path, multiple_paths):
     """Check if the given folder is trusted"""
@@ -272,25 +270,13 @@ def check_folder(path, multiple_paths):
     # Remove '/' from end of path
     path = os.path.normpath(path)
 
-    global ALL_PATHS_ARE_UNTRUSTED
-    global UNTRUSTED_PATH_FOUND
-
     # Check if path is in the untrusted paths list
     if is_untrusted_path(path):
         # Print out which paths are untrusted if we're checking multiple paths
-        if multiple_paths:
-            qprint('Untrusted: {}'.format(path), False)
-            UNTRUSTED_PATH_FOUND = True
-        else:
-            qprint('Folder is untrusted', False)
-            sys.exit(1)
+        handle_trusted(path, multiple_paths, "Folder", True)
     else:
         # Don't return until we've checked all paths
-        if multiple_paths:
-            ALL_PATHS_ARE_UNTRUSTED = False
-        else:
-            qprint('Folder is trusted', False)
-            sys.exit(0)
+        handle_trusted(path, multiple_paths, "Folder", False)
 
 def change_file(path, trusted):
     """Change the trust state of a file"""
