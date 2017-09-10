@@ -290,8 +290,8 @@ def change_file(path, trusted):
             pass
 
     except IOError:
-        # Try to unlock file to get read access
-        safe_chmod(path, 0o644,
+        # Try to unlock file to get read/write access
+        safe_chmod(path, 0o600,
             'Could not unlock {} for reading'.format(path))
     if trusted:
         # Set file to trusted
@@ -308,6 +308,10 @@ def change_file(path, trusted):
                 error('Unable to remove untrusted attribute on {}'.format(path))
                 safe_chmod(path, orig_perms,
                     'Unable to set original perms. on {}'.format(path))
+
+        # Finally set to restricted permissions
+        safe_chmod(path, 0o200,
+           'Could not set restricted perms. for: {}'.format(path))
 
         # Remove visual attributes
         set_visual_attributes(path, False)
