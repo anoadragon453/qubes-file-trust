@@ -174,6 +174,10 @@ def is_untrusted_xattr(path, orig_perms):
 
 def set_visual_attributes(path, attributes_on):
     """Add visual attributes such as emblems and colors to files/folders"""
+    
+    # TODO: Disabled while a faster method is found
+    return
+
     if attributes_on:
         try:
             # Add important nautilius emblem
