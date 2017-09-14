@@ -100,7 +100,8 @@ void mark_files_as_untrusted(const std::set<std::string> file_paths) {
     int exit_code;
 
     // Convert set to array
-    const char* qvm_argv[MAX_ARG_LEN + 3]; // Account for extra args
+    int extra_args = 3;
+    const char* qvm_argv[MAX_ARG_LEN + extra_args]; // Account for extra args
 
     // Add non-variable program arguments
     qvm_argv[0] = "qvm-file-trust";
@@ -113,10 +114,10 @@ void mark_files_as_untrusted(const std::set<std::string> file_paths) {
     int iterations = file_paths.size() / MAX_ARG_LEN;
     std::set<std::string>::iterator it = file_paths.begin();
     for (int i = 0; i <= iterations; i++) {
-        int arg_index = 2;
+        int arg_index = extra_args - 1;
 
         // Build an array of MAX_ARG_LEN elements
-        for (; arg_index - 2 < MAX_ARG_LEN; ++it) {
+        for (; arg_index < MAX_ARG_LEN + extra_args - 1; ++it) {
             // Stop when we've hit the end
             if (it == file_paths.end())
                 break;

@@ -29,6 +29,7 @@ import argparse
 import os
 import xattr
 import subprocess
+import multiprocessing
 
 UNTRUSTED_PHRASE = ""
 PHRASE_FILE_LOC = '/etc/qubes/always-open-in-dispvm.phrase'
@@ -159,31 +160,25 @@ def is_untrusted_xattr(path, orig_perms):
     # Return whether we found our attribute
     return (untrusted_attribute in file_xattrs)
 
-def set_visual_attributes(path, attributes_on):
-    """Add visual attributes such as emblems and colors to files/folders"""
-    
-    # TODO: Disabled while a faster method is found
-    return
+def set_visual_attributes_on(path):
+    """Add visual attributes to a path, such as emblems"""
+    # Set specified visual attributes
+    try:
+        subprocess.Popen(['/usr/bin/gvfs-set-attribute', os.path.realpath(path), '-t', 'stringv',
+            'metadata::emblems', 'important'])
+        os.utime(path, None)
+    except:
+        error('Error setting visual attributes of path: {}'.format(path))
 
-    if attributes_on:
-        try:
-            # Add important nautilius emblem
-            proc = subprocess.Popen(['/usr/bin/gvfs-set-attribute', os.path.realpath(path), '-t', 'stringv',
-                'metadata::emblems', 'important'])
-            subprocess.Popen.wait(proc)
-            os.utime(path, None)
-        except:
-            error('Unable to add emblem \'important\' on {}'.format(path))
-
-    else:
-        try:
-            # Remove important nautilus emblem
-            proc = subprocess.Popen(['/usr/bin/gvfs-set-attribute', os.path.realpath(path), '-t', 'unset',
-                'metadata::emblems'], stdout=subprocess.PIPE)
-            subprocess.Popen.wait(proc)
-            os.utime(path, None)
-        except:
-            error('Unable to remove emblem on {}'.format(path))
+def set_visual_attributes_off(path):
+    """Remove visual attributes from a path, such as emblems"""
+    # Remove specified visual attributes
+    try:
+        proc = subprocess.Popen(['/usr/bin/gvfs-set-attribute', os.path.realpath(path), '-t', 'unset',
+            'metadata::emblems'], stdout=subprocess.PIPE)
+        os.utime(path, None)
+    except:
+        error('Error removing visual attributes of path: {}'.format(path))
 
 def path_is_parent(parent, child):
     """Check if a child file/path is in a parent folder/path."""
@@ -218,7 +213,7 @@ def is_untrusted_path(path):
     # Otherwise check if path contains untrusted phrase
     return UNTRUSTED_PHRASE.upper() in path.upper()
 
-def handle_trusted(path, multiple_paths, object_type, untrusted):
+def handle_trust(path, multiple_paths, object_type, untrusted):
     """Common code for when a file or folder is found trusted or untrusted"""
 
     global ALL_PATHS_ARE_UNTRUSTED
@@ -239,7 +234,7 @@ def handle_trusted(path, multiple_paths, object_type, untrusted):
         sys.exit((1 if untrusted else 0))
 
 def check_file(path, multiple_paths):
-    """Check if the given file is trusted"""
+    """Check the given file's trust. Returns True if untrusted"""
 
     global UNTRUSTED_PATH_FOUND
     global ALL_PATHS_ARE_UNTRUSTED
@@ -254,15 +249,15 @@ def check_file(path, multiple_paths):
 
     except IOError:
         # If file is not readable, assume untrusted
-        handle_trusted(path, multiple_paths, "File", True)
+        handle_trust(path, multiple_paths, "File", True)
 
     # File is readable, attempt to check trusted status
     if is_untrusted_xattr(path, orig_perms):
         # Print out which paths are untrusted if we're checking multiple paths
-        handle_trusted(path, multiple_paths, "File", True)
+        handle_trust(path, multiple_paths, "File", True)
     else:
         # Don't return until we've checked all paths
-        handle_trusted(path, multiple_paths, "File", False)
+        handle_trust(path, multiple_paths, "File", False)
 
 def check_folder(path, multiple_paths):
     """Check if the given folder is trusted"""
@@ -313,9 +308,6 @@ def change_file(path, trusted):
         safe_chmod(path, 0o200,
            'Could not set restricted perms. for: {}'.format(path))
 
-        # Remove visual attributes
-        set_visual_attributes(path, False)
-
     else:
         # Set file to untrusted
         # AKA add our xattr and lock
@@ -329,9 +321,6 @@ def change_file(path, trusted):
                 'Unable to return perms after setting as untrusted: {}'.
                 format(path))
             sys.exit(65)
-
-        # Add visual attributes
-        set_visual_attributes(path, True)
 
 def change_folder(path, trusted):
     """Change the trust state of a folder"""
@@ -406,9 +395,6 @@ def change_folder(path, trusted):
 
         if not found_path:
             error("Requested to trust but path not untrusted: {}".format(path))
-
-        # Remove visual attributes
-        set_visual_attributes(path, False)
     else:
         # Set folder to untrusted
         # AKA add path to untrusted paths list
@@ -432,9 +418,6 @@ def change_folder(path, trusted):
         # Append path to the bottom
         with open(LOCAL_FOLDER_LOC, 'a') as local_rules:
             local_rules.write(path + '\n')
-
-        # Add visual attributes
-        set_visual_attributes(path, True)
 
 def main():
     """Read in from the command line and call dependent functions"""
@@ -563,6 +546,15 @@ def main():
         else:
             qprint('All paths are trusted', False)
             sys.exit(0)
+
+    # Set visual attributes for each file
+    '''
+    pool = multiprocessing.Pool()
+    if args.trusted:
+        pool.map(set_visual_attributes_off, args.paths)
+    else:
+        pool.map(set_visual_attributes_on, args.paths)
+    '''
 
 if __name__ == '__main__':
     main()
