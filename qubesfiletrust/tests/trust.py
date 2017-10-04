@@ -299,14 +299,18 @@ class TC_10_misc(unittest.TestCase):
 
     def test_010_error(self):
         """Ensure errors are formatted properly."""
+        output = ""
+
         qvm_file_trust.OUTPUT_QUIET = False
-        captured_obj = io.StringIO()
-        sys.stdout = captured_obj
-        try:
-            qvm_file_trust.error('Test string!')
-        finally:
-            sys.stdout = sys.__stdout__
-            self.assertEqual(captured_obj.getvalue(), 'Error: Test string!\n')
+        out = io.StringIO()
+        sys.stdout = out
+
+        qvm_file_trust.error('Test string!')
+        output = out.getvalue()
+        self.assertEqual(output, 'Error: Test string!\n')
+
+        sys.stdout = sys.__stdout__
+        print('!!output: ' + output)
 
         qvm_file_trust.OUTPUT_QUIET = True
         captured_obj = io.StringIO()

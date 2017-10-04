@@ -26,6 +26,7 @@
 #include <sstream>
 #include <iostream>
 #include <exception>
+#include <algorithm>
 #include <unordered_map>
 #include <ftw.h>
 #include <pwd.h>
@@ -45,7 +46,7 @@
  * https://stackoverflow.com/a/29402705
  * If the C library can support 64-bit file sizes
  * and offsets, using the standard names,
- * these defines tell the C library to do so. */
+ * this define tell the C library to do so. */
 #define _FILE_OFFSET_BITS 64 
 
 /* 
@@ -70,13 +71,13 @@
 #define MAX_LEN 1024        // Path length for a directory
 #define MAX_EVENTS 1024     // Max. number of events to process at one go
 #define MAX_ARG_LEN 500     // Maximum amount of args passed to qvm-file-trust
-#define EVENT_SIZE  (sizeof(struct inotify_event))	     // Size of one event
-#define BUF_LEN     (MAX_EVENTS*(EVENT_SIZE + NAME_MAX + 1)) // Event data buffer
+#define EVENT_SIZE (sizeof(struct inotify_event))	     // Size of one event
+#define BUF_LEN (MAX_EVENTS*(EVENT_SIZE + NAME_MAX + 1)) // Event data buffer
 
 int watch_fd;
 
 /*
- * Hash table to keep track of watch descriptors and the absolute filepaths
+ * Unordered map to keep track of watch descriptors and the absolute filepaths
  * that they correspond to 
  */
 std::unordered_map<int, std::string> watch_table;
@@ -86,6 +87,17 @@ std::unordered_map<int, std::string> watch_table;
  * in one fell swoop every few seconds
  */
 std::set<std::string> untrusted_buffer;
+
+/*
+ * Store untrusted directory listing and compare when rule lists change
+ */
+std::set<std::string> untrusted_dirs;
+
+/*
+ * Keep track of global and local rules lists
+ */
+std::string global_rules;
+std::string local_rules;
 
 /*
  * Set a file or files as untrusted through qvm-file-trust
@@ -100,8 +112,9 @@ void mark_files_as_untrusted(const std::set<std::string> file_paths) {
     int exit_code;
 
     // Convert set to array
+    // Modify to add extra arguments if necessary
     int extra_args = 3;
-    const char* qvm_argv[MAX_ARG_LEN + extra_args]; // Account for extra args
+    const char* qvm_argv[MAX_ARG_LEN + extra_args];
 
     // Add non-variable program arguments
     qvm_argv[0] = "qvm-file-trust";
@@ -160,8 +173,29 @@ void mark_files_as_untrusted(const std::set<std::string> file_paths) {
 }
 
 /*
+ * Places an inotify watch on a filepath
+ */
+int inotify_watch_path(const char *filepath) {
+    // Add watch to starting directory
+    int wd = inotify_add_watch(watch_fd, filepath, 
+            IN_CREATE | IN_MODIFY | IN_DELETE | IN_MOVED_TO | IN_MOVED_FROM);
+    if (wd == -1) {
+        printf("Couldn't add watch to %s\n", filepath);
+    } else {
+        printf("%d Watching:: %s\n", wd, filepath);
+
+        // Add watch descriptor and filepath to global watchtable
+        std::string filepath_string = filepath;
+        std::pair<int, std::string> watch_pair(wd, filepath_string);
+        watch_table.insert(watch_pair);
+    }
+
+    // Return the watch descriptor
+    return wd;
+}
+
+/*
  * Places an inotify_watch on the directory and all subdirectories
- * Should call above method after compiling a list of all files to set as untrusted
  */
 int watch_dir(const char *filepath, const struct stat *info,
         const int typeflag, struct FTW *pathinfo) {
@@ -181,20 +215,7 @@ int watch_dir(const char *filepath, const struct stat *info,
 
     std::cout << "Placing watch on " << filepath
         << " and subdirectories" << std::endl;
-
-    // Add watch to starting directory
-    int wd = inotify_add_watch(watch_fd, filepath, 
-            IN_CREATE | IN_MODIFY | IN_DELETE | IN_MOVED_TO | IN_MOVED_FROM);
-    if (wd == -1) {
-        printf("Couldn't add watch to %s\n", filepath);
-    } else {
-        printf("%d Watching:: %s\n", wd, filepath);
-
-        // Add watch descriptor and filepath to global watchtable
-        std::string filepath_string = filepath;
-        std::pair<int, std::string> watch_pair(wd, filepath_string);
-        watch_table.insert(watch_pair);
-    }
+    inotify_watch_path(filepath);
 
     return 0;
 }
@@ -280,6 +301,14 @@ void keep_watch_on_dirs(const int fd) {
                     printf("%d DIR::%s MODIFIED\n", event->wd, fullpath.c_str());
                 } else {
                     printf("%d FILE::%s MODIFIED\n", event->wd, fullpath.c_str());
+
+                    // Remove "/" from end of filepath
+                    fullpath.pop_back();
+
+                    // Check if a rule list was modified
+                    if (fullpath == global_rules || fullpath == local_rules) {
+                        printf("Rule list updated, reloading rule lists...\n");
+                    }
                 }
             }
 
@@ -307,6 +336,10 @@ std::set<std::string> get_untrusted_dir_list() {
     while (std::getline(ss, to, '\n')) {
         rules.insert(to);
     }
+
+    // Watch any changes in the rules lists
+    inotify_watch_path(global_rules.c_str());
+    inotify_watch_path(local_rules.c_str());
     return rules;
 }
 
@@ -322,16 +355,24 @@ void *set_trust_on_timer(void*) {
 }
 
 int main(void) {
-    // TODO: Set up logging - log to syslog
-
     // Initialize inotify
     watch_fd = inotify_init();
     if (watch_fd < 0) {
         std::cerr << "Unable to initialize inotify" << std::endl;
     }
 
+    // Determine rule list paths
+    const char* homedir;
+    if ((homedir = getenv("HOME")) == NULL) {
+        homedir = getpwuid(getuid())->pw_dir;
+    }
+
+    global_rules = "/etc/qubes/always-open-in-dispvm.list";
+    local_rules = std::string(homedir) +
+        "/.config/qubes/always-open-in-dispvm.list";
+
     // Get a list of all untrusted directories
-    std::set<std::string> untrusted_dirs = get_untrusted_dir_list();
+    untrusted_dirs = get_untrusted_dir_list();
 
     // Add a watch to each untrusted directory and their subdirectories
     std::set<std::string>::iterator it;
@@ -342,6 +383,7 @@ int main(void) {
     }
 
     // Start untrusted_buffer monitor
+    // TODO: Call mark_files_as_untrusted from main thread instead of separate
     pthread_t tid;
     pthread_create(&tid, NULL, &set_trust_on_timer, NULL);
 
