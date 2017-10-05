@@ -312,6 +312,8 @@ def change_file(path, trusted):
         # Set file to untrusted
         # AKA add our xattr and lock
         try:
+            safe_chmod(path, 0o600,
+                'Could not unlock {} for writing'.format(path))
             xattr.setxattr(path, 'user.qubes.untrusted', 'true')
             safe_chmod(path, 0o0,
                     'Unable to set untrusted permissions on: {}'.format(path))
