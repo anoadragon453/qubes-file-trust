@@ -19,7 +19,6 @@
  *
  */
 
-#include <set>
 #include <string>
 #include <cstdio>
 #include <fstream>
@@ -28,6 +27,7 @@
 #include <exception>
 #include <algorithm>
 #include <unordered_map>
+#include <unordered_set>
 #include <ftw.h>
 #include <pwd.h>
 #include <errno.h>
@@ -86,12 +86,19 @@ std::unordered_map<int, std::string> watch_table;
  * Store untrusted file's paths in here and mark them all as untrusted
  * in one fell swoop every few seconds
  */
-std::set<std::string> untrusted_buffer;
+std::unordered_set<std::string> untrusted_buffer;
+
+/*
+ * Signifies whether the python client is currently being called.
+ * Used to wake the client up again when we get new batches after a
+ * long period of inactivity.
+ */
+bool currentlyMarkingFiles;
 
 /*
  * Store untrusted directory listing and compare when rule lists change
  */
-std::set<std::string> untrusted_dirs;
+std::unordered_set<std::string> untrusted_dirs;
 
 /*
  * Keep track of global and local rules lists
@@ -102,11 +109,19 @@ std::string local_rules;
 /*
  * Set a file or files as untrusted through qvm-file-trust
  */
-void mark_files_as_untrusted(const std::set<std::string> file_paths) {
-    // Return if given empty set
-    if (file_paths.empty()) {
+void mark_files_as_untrusted(const std::unordered_set<std::string> file_paths) {
+    if (currentlyMarkingFiles) {
+        std::cout << "Quitting because we're still running..." << std::endl;
         return;
     }
+
+    if (file_paths.empty()) {
+        std::cout << "No file paths provided, quitting..." << std::endl;
+        return;
+    }
+
+    currentlyMarkingFiles = true;
+    std::cout << "Marking " << file_paths.size() << " files as untrusted!" << std::endl;
 
     pid_t child_pid;
     int exit_code;
@@ -125,13 +140,15 @@ void mark_files_as_untrusted(const std::set<std::string> file_paths) {
 
     // Loop through list of arguments, processing MAX_ARG_LEN args each time
     int iterations = file_paths.size() / MAX_ARG_LEN;
-    std::set<std::string>::iterator it = file_paths.begin();
-    for (int i = 0; i <= iterations; i++) {
+    std::unordered_set<std::string>::const_iterator it = file_paths.begin();
+    std::cout << "Iterating..." << std::endl;
+    for (; iterations >= 0; iterations--) {
         int arg_index = extra_args - 1;
 
         // Build an array of MAX_ARG_LEN elements
-        for (; arg_index < MAX_ARG_LEN + extra_args - 1; ++it) {
-            // Stop when we've hit the end
+        std::cout << "Adding args..." << std::endl;
+        for (; arg_index < MAX_ARG_LEN + extra_args - 1; it++) {
+            // Stop and break from inner loop when we've hit the end
             if (it == file_paths.end())
                 break;
 
@@ -142,12 +159,19 @@ void mark_files_as_untrusted(const std::set<std::string> file_paths) {
             qvm_argv[arg_index] = file_path;
             arg_index++;
         }
+        std::cout << "Finished adding args..." << std::endl;
+        std::cout << "Got: ";
+        for (int i = 0; i < arg_index; i++) {
+            std::cout << " " << qvm_argv[i];
+        }
+        std::cout << std::endl;
 
         // Add NULL terminator to signal end of argument list
         qvm_argv[arg_index] = (char*) NULL;
 
         // Once we have a list of MAX_ARG_LEN args,
         // fork and attempt to call qvm-file-trust
+        std::cout << "Forking!" << std::endl;
         switch (child_pid=fork()) {
             case 0:
                 // We're the child, call qvm-file-trust
@@ -162,14 +186,48 @@ void mark_files_as_untrusted(const std::set<std::string> file_paths) {
                 return;
             default:
                 // Fork succeeded, and we got our pid, wait until child exits
+                std::cout << "Waiting for the child..." << std::endl;
                 if (waitpid(child_pid, &exit_code, 0) == -1) {
+                    // Child has exited with error
                     perror("wait for qvm-file-trust failed");
+                    std::cout << "Failed!" << std::endl;
+
+                    // Return and try these files again later
+                    currentlyMarkingFiles = false;
                     return;
                 }
+
+                std::cout << "Didn't fail!" << std::endl;
+
+                if (!untrusted_buffer.empty()) {
+                    // Remove these files from the untrusted_buffer
+                    // Advance by the number of marked files
+                    int starting_index = arg_index - extra_args + 1;
+                    std::unordered_set<std::string>::iterator it = untrusted_buffer.begin();
+                    std::advance(it, starting_index);
+
+                    std::cout << "Buffer size: " << untrusted_buffer.size() << std::endl;
+                    std::cout << "Advanced by " << arg_index + 1 - extra_args << std::endl;
+
+                    // Create a new buffer with the new items, faster than deleting
+                    std::unordered_set<std::string> new_untrusted_buffer;
+                    for (; it != untrusted_buffer.end(); it++) {
+                        std::cout << "Running: " << (*it) << std::endl;
+                        new_untrusted_buffer.insert((*it));
+                    }
+
+                    std::cout << "Old buffer size: " << untrusted_buffer.size() << std::endl;
+                    untrusted_buffer = new_untrusted_buffer;
+                    std::cout << "New buffer size: " << untrusted_buffer.size() << std::endl;
+
+                    // Clean up
+                    currentlyMarkingFiles = false;
+                    mark_files_as_untrusted(untrusted_buffer);
+                }
+
+            currentlyMarkingFiles = false;
         }
     }
-
-    untrusted_buffer.clear();
 }
 
 /*
@@ -178,7 +236,7 @@ void mark_files_as_untrusted(const std::set<std::string> file_paths) {
 int inotify_watch_path(const char *filepath) {
     // Add watch to starting directory
     int wd = inotify_add_watch(watch_fd, filepath, 
-            IN_CREATE | IN_MODIFY | IN_DELETE | IN_MOVED_TO | IN_MOVED_FROM);
+            IN_CREATE | IN_MODIFY | IN_DELETE_SELF | IN_MOVED_TO | IN_MOVED_FROM | IN_MOVE_SELF);
     if (wd == -1) {
         printf("Couldn't add watch to %s\n", filepath);
     } else {
@@ -238,6 +296,10 @@ int place_watch_on_dir_and_subdirs(const char* const filepath) {
         errno = result;
     }
 
+    // Mark any found files as untrusted
+    std::cout << "Finished running. untrusted_buffer is now size: " << untrusted_buffer.size() << std::endl;
+    mark_files_as_untrusted(untrusted_buffer);
+
     return errno;
 }
 
@@ -260,32 +322,33 @@ void keep_watch_on_dirs(const int fd) {
             std::string filepath = watch_table[event->wd];
             std::string fullpath = filepath + "/" + event->name;
 
-            if (event->len) {
-                if (event->mask & IN_CREATE) {
-                    // Get absolute filepath from our global watch_table
-                    if (event->mask & IN_ISDIR) {
-                        printf("%d DIR::%s CREATED\n", event->wd, fullpath.c_str());
-                        place_watch_on_dir_and_subdirs(fullpath.c_str());
-                    } else {
-                        printf("%d FILE::%s CREATED\n", event->wd, fullpath.c_str());
-                        // Mark file to be set as untrusted
-                        untrusted_buffer.insert(fullpath);
-                    }
-                }
-
-                if (event->mask & IN_MOVED_TO) {
-                    if (event->mask & IN_ISDIR) {
-                        printf("%d DIR::%s MOVED IN\n", event->wd, fullpath.c_str());
-                        place_watch_on_dir_and_subdirs(fullpath.c_str());
-                    } else {
-                        printf("%d FILE::%s MOVED IN\n", event->wd, fullpath.c_str());
-                        // Mark file to be set as untrusted
-                        untrusted_buffer.insert(fullpath);
-                    }
+            std::cout << "Got event with mask: " << event->mask << std::endl;
+            if (event->mask & IN_CREATE) {
+                // Get absolute filepath from our global watch_table
+                if (event->mask & IN_ISDIR) {
+                    printf("%d DIR::%s CREATED\n", event->wd, fullpath.c_str());
+                    place_watch_on_dir_and_subdirs(fullpath.c_str());
+                } else {
+                    printf("%d FILE::%s CREATED\n", event->wd, fullpath.c_str());
+                    // Mark file to be set as untrusted
+                    untrusted_buffer.insert(fullpath);
+                    mark_files_as_untrusted(untrusted_buffer);
                 }
             }
 
-            if (event->mask & IN_MOVED_FROM) {
+            if (event->mask & IN_MOVED_TO) {
+                if (event->mask & IN_ISDIR) {
+                    printf("%d DIR::%s MOVED IN\n", event->wd, fullpath.c_str());
+                    place_watch_on_dir_and_subdirs(fullpath.c_str());
+                } else {
+                    printf("%d FILE::%s MOVED IN\n", event->wd, fullpath.c_str());
+                    // Mark file to be set as untrusted
+                    untrusted_buffer.insert(fullpath);
+                    mark_files_as_untrusted(untrusted_buffer);
+                }
+            }
+
+            if (event->mask & IN_MOVED_FROM || event->mask & IN_MOVE_SELF) {
                 if (event->mask & IN_ISDIR) {
                     printf("%d DIR::%s MOVED OUT\n", event->wd, fullpath.c_str());
 
@@ -296,7 +359,7 @@ void keep_watch_on_dirs(const int fd) {
                 }
             }
 
-            if (event->mask & IN_MODIFY) {
+            if (event->mask & IN_MODIFY || event->mask & IN_DELETE_SELF) {
                 if (event->mask & IN_ISDIR) {
                     printf("%d DIR::%s MODIFIED\n", event->wd, fullpath.c_str());
                 } else {
@@ -321,8 +384,8 @@ void keep_watch_on_dirs(const int fd) {
  * Get a list of untrusted directories to watch
  * from qvm-file-trust's output
  */
-std::set<std::string> get_untrusted_dir_list() {
-    std::set<std::string> rules;
+std::unordered_set<std::string> get_untrusted_dir_list() {
+    std::unordered_set<std::string> rules;
 
     FILE* fp = popen("/usr/bin/qvm-file-trust -p", "r");
     char buf[1024*1024];
@@ -341,17 +404,6 @@ std::set<std::string> get_untrusted_dir_list() {
     inotify_watch_path(global_rules.c_str());
     inotify_watch_path(local_rules.c_str());
     return rules;
-}
-
-/*
- * Run every few seconds and send untrusted_buffer to handler method 
- */
-void *set_trust_on_timer(void*) {
-    while(1) {
-        sleep(UNTR_MARK_PERIOD);
-        mark_files_as_untrusted(untrusted_buffer);
-    }
-    return 0;
 }
 
 int main(void) {
@@ -375,17 +427,12 @@ int main(void) {
     untrusted_dirs = get_untrusted_dir_list();
 
     // Add a watch to each untrusted directory and their subdirectories
-    std::set<std::string>::iterator it;
+    std::unordered_set<std::string>::iterator it;
     std::string dir;
-    for (it = untrusted_dirs.begin(); it != untrusted_dirs.end(); ++it) {
+    for (it = untrusted_dirs.begin(); it != untrusted_dirs.end(); it++) {
         dir = *it;
         place_watch_on_dir_and_subdirs(dir.c_str());
     }
-
-    // Start untrusted_buffer monitor
-    // TODO: Call mark_files_as_untrusted from main thread instead of separate
-    pthread_t tid;
-    pthread_create(&tid, NULL, &set_trust_on_timer, NULL);
 
     // Monitor inotify for file events
     keep_watch_on_dirs(watch_fd);
