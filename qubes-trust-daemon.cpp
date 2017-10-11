@@ -160,11 +160,6 @@ void mark_files_as_untrusted(const std::unordered_set<std::string> file_paths) {
             arg_index++;
         }
         std::cout << "Finished adding args..." << std::endl;
-        std::cout << "Got: ";
-        for (int i = 0; i < arg_index; i++) {
-            std::cout << " " << qvm_argv[i];
-        }
-        std::cout << std::endl;
 
         // Add NULL terminator to signal end of argument list
         qvm_argv[arg_index] = (char*) NULL;
@@ -303,6 +298,49 @@ int place_watch_on_dir_and_subdirs(const char* const filepath) {
     return errno;
 }
 
+/*
+ * Get a list of untrusted directories to watch
+ * from qvm-file-trust's output
+ */
+std::unordered_set<std::string> get_untrusted_dir_list() {
+    std::unordered_set<std::string> rules;
+
+    FILE* fp = popen("/usr/bin/qvm-file-trust -p", "r");
+    char buf[1024*1024];
+
+    fread(buf, 1, sizeof(buf), fp);
+    std::string rules_str = buf;
+
+    std::stringstream ss(rules_str);
+    std::string to;
+
+    while (std::getline(ss, to, '\n')) {
+        rules.insert(to);
+    }
+
+    // Watch any changes in the rules lists
+    inotify_watch_path(global_rules.c_str());
+    inotify_watch_path(local_rules.c_str());
+    return rules;
+}
+
+/*
+ * Retrieve the list of untrusted dirs and place a watch on
+ * it and its subdirs.
+ */
+void watch_untrusted_dir_list() {
+    // Get the list of all untrusted directories
+    untrusted_dirs = get_untrusted_dir_list();
+
+    // Add a watch to each untrusted directory and their subdirectories
+    std::unordered_set<std::string>::iterator it;
+    std::string dir;
+    for (it = untrusted_dirs.begin(); it != untrusted_dirs.end(); it++) {
+        dir = *it;
+        place_watch_on_dir_and_subdirs(dir.c_str());
+    }
+}
+
 /* 
  * Watches directories and acts on various spawned inotify events
  */
@@ -369,8 +407,10 @@ void keep_watch_on_dirs(const int fd) {
                     fullpath.pop_back();
 
                     // Check if a rule list was modified
-                    if (fullpath == global_rules || fullpath == local_rules) {
+                    if (fullpath.find(global_rules) != std::string::npos ||
+                        fullpath.find(local_rules) != std::string::npos) {
                         printf("Rule list updated, reloading rule lists...\n");
+                        watch_untrusted_dir_list();
                     }
                 }
             }
@@ -378,32 +418,6 @@ void keep_watch_on_dirs(const int fd) {
             i += EVENT_SIZE + event->len;
         }
     }
-}
-
-/*
- * Get a list of untrusted directories to watch
- * from qvm-file-trust's output
- */
-std::unordered_set<std::string> get_untrusted_dir_list() {
-    std::unordered_set<std::string> rules;
-
-    FILE* fp = popen("/usr/bin/qvm-file-trust -p", "r");
-    char buf[1024*1024];
-
-    fread(buf, 1, sizeof(buf), fp);
-    std::string rules_str = buf;
-
-    std::stringstream ss(rules_str);
-    std::string to;
-
-    while (std::getline(ss, to, '\n')) {
-        rules.insert(to);
-    }
-
-    // Watch any changes in the rules lists
-    inotify_watch_path(global_rules.c_str());
-    inotify_watch_path(local_rules.c_str());
-    return rules;
 }
 
 int main(void) {
@@ -423,16 +437,7 @@ int main(void) {
     local_rules = std::string(homedir) +
         "/.config/qubes/always-open-in-dispvm.list";
 
-    // Get a list of all untrusted directories
-    untrusted_dirs = get_untrusted_dir_list();
-
-    // Add a watch to each untrusted directory and their subdirectories
-    std::unordered_set<std::string>::iterator it;
-    std::string dir;
-    for (it = untrusted_dirs.begin(); it != untrusted_dirs.end(); it++) {
-        dir = *it;
-        place_watch_on_dir_and_subdirs(dir.c_str());
-    }
+    watch_untrusted_dir_list();
 
     // Monitor inotify for file events
     keep_watch_on_dirs(watch_fd);
