@@ -107,6 +107,14 @@ std::string global_rules;
 std::string local_rules;
 
 /*
+ * Helper function, string startswith
+ */
+bool startsWith(const std::string& haystack, const std::string& needle) {
+    return needle.length() <= haystack.length() && 
+        equal(needle.begin(), needle.end(), haystack.begin());
+}
+
+/*
  * Set a file or files as untrusted through qvm-file-trust
  */
 void mark_files_as_untrusted(const std::unordered_set<std::string> file_paths) {
@@ -248,7 +256,36 @@ int inotify_watch_path(const char *filepath) {
 }
 
 /*
- * Places an inotify_watch on the directory and all subdirectories
+ * Removes inotify_watch on the given directory
+ */
+void rec_rm_watch(std::string filepath) {
+    // Add '/' to end of folder strings
+    // Removes accidental marking of similar folder names
+    // i.e. /root and /rootabega folders
+    filepath += "/";
+
+    for (auto it = watch_table.begin(); it != watch_table.end();) {
+        std::string checkPath = it->second + "/";
+
+        // Check if any of the filepaths in watch_table start with
+        // our filepath
+        // FIXME: Doesn't remove it from the first folder loop runs through 
+        // This is mitigated by our check in inotify events for empty
+        // filepaths as watch_table will return an empty val for an unknown fd
+        // But ideally we wouldn't have to check for that.
+        if (startsWith(checkPath, filepath)) {
+            it = watch_table.erase(it);
+            if (inotify_rm_watch(watch_fd, it->first) != 0) {
+                printf("Error removing watch: %d\n", errno);
+            }
+        } else {
+            ++it;
+        }
+    }
+}
+
+/*
+ * Places an inotify_watch on the given directory
  */
 int watch_dir(const char *filepath, const struct stat *info,
         const int typeflag, struct FTW *pathinfo) {
@@ -358,7 +395,14 @@ void keep_watch_on_dirs(const int fd) {
         while (i < length) {
             struct inotify_event* event = (struct inotify_event*) &buffer[i];
             std::string filepath = watch_table[event->wd];
+
+            // Ignore empty filepaths
+            if (filepath.empty()) {
+                continue;
+            }
+
             std::string fullpath = filepath + "/" + event->name;
+
 
             std::cout << "Got event with mask: " << event->mask << std::endl;
             if (event->mask & IN_CREATE) {
@@ -390,8 +434,8 @@ void keep_watch_on_dirs(const int fd) {
                 if (event->mask & IN_ISDIR) {
                     printf("%d DIR::%s MOVED OUT\n", event->wd, fullpath.c_str());
 
-                    // TODO: Recursive rm watch
-                    inotify_rm_watch(watch_fd, event->wd);
+                    // Recursive rm watch
+                    rec_rm_watch(fullpath);
                 } else {
                     printf("%d FILE::%s MOVED OUT\n", event->wd, fullpath.c_str());
                 }
