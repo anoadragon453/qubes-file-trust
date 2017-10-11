@@ -268,10 +268,10 @@ def check_folder(path, multiple_paths):
     # Check if path is in the untrusted paths list
     if is_untrusted_path(path):
         # Print out which paths are untrusted if we're checking multiple paths
-        handle_trusted(path, multiple_paths, "Folder", True)
+        handle_trust(path, multiple_paths, "Folder", True)
     else:
         # Don't return until we've checked all paths
-        handle_trusted(path, multiple_paths, "Folder", False)
+        handle_trust(path, multiple_paths, "Folder", False)
 
 def change_file(path, trusted):
     """Change the trust state of a file"""
