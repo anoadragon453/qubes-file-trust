@@ -289,6 +289,11 @@ void rec_rm_watch(std::string filepath) {
  */
 int watch_dir(const char *filepath, const struct stat *info,
         const int typeflag, struct FTW *pathinfo) {
+    // Some parameters are unnecessary
+    std::ignore = info;
+    std::ignore = typeflag;
+    std::ignore = pathinfo;
+
     // Watch directories, set files as untrusted
     struct stat s;
     if(stat(filepath, &s) == 0) {
@@ -345,7 +350,7 @@ std::unordered_set<std::string> get_untrusted_dir_list() {
     FILE* fp = popen("/usr/bin/qvm-file-trust -p", "r");
     char buf[1024*1024];
 
-    fread(buf, 1, sizeof(buf), fp);
+    std::ignore = fread(buf, 1, sizeof(buf), fp);
     std::string rules_str = buf;
 
     std::stringstream ss(rules_str);
