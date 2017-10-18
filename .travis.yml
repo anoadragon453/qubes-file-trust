@@ -1,0 +1,8 @@
+language: python
+python:
+    - 3.6
+install:
+    - apt install python3-pyxattr gvfs-bin libffi-dev g++
+    - make daemon
+    - make install EX_SETUP_OPTIONS=--install-layout=deb
+script: make test
