@@ -33,6 +33,8 @@ Follow the progress [here](https://blog.amorgan.xyz/tag_gsoc-2017.html)!
 
 `g++` (`gcc-c++` on fedora) for compilation of qubes-trust-daemon
 
+`pandoc` for building the documentation
+
 ## Install
 
 Grab the requirements listed above then:
