@@ -1,3 +1,5 @@
+[![Coverage Status](https://coveralls.io/repos/github/anoadragon453/qubes-file-trust/badge.svg?branch=master)](https://coveralls.io/github/anoadragon453/qubes-file-trust?branch=master)
+
 # Qubes File Trust
 
 Adds ability to set trust level for files and folders. Untrusted files will be automatically opened in a disposableVM. 
