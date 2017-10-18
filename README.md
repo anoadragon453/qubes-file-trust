@@ -1,5 +1,4 @@
 [![Build Status](https://travis-ci.org/anoadragon453/qubes-file-trust.svg?branch=master)](https://travis-ci.org/anoadragon453/qubes-file-trust)
-
 [![Coverage Status](https://coveralls.io/repos/github/anoadragon453/qubes-file-trust/badge.svg?branch=master)](https://coveralls.io/github/anoadragon453/qubes-file-trust?branch=master)
 
 # Qubes File Trust
@@ -39,7 +38,7 @@ Follow the progress [here](https://blog.amorgan.xyz/tag_gsoc-2017.html)!
 Grab the requirements listed above then:
 
 ```
-make daemon
+make build
 sudo make install
 ```
 
