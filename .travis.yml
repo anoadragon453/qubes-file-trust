@@ -3,6 +3,6 @@ python:
     - 3.6
 install:
     - sudo apt install python3-pyxattr gvfs-bin libffi-dev g++
-    - make daemon
+    - make build
     - sudo make install EX_SETUP_OPTIONS=--install-layout=deb
 script: make test
