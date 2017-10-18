@@ -27,15 +27,17 @@ Follow the progress [here](https://blog.amorgan.xyz/tag_gsoc-2017.html)!
 
 Debian:
 ```
-# apt install python3-pyxattr gvfs-bin libffi-dev g++ pandoc
+# apt install python3-pyxattr python3-setuptools gvfs-bin libffi-dev g++ pandoc
 ```
 
 Fedora:
 ```
-# dnf install python3-pyxattr gvfs libffi-devel gcc-c++ pandoc
+# dnf install python3-pyxattr python3-setuptools gvfs libffi-devel gcc-c++ pandoc
 ```
 
 `python3-pyxattr` is required for manipulating extended attribute values
+
+`python3-setuptools` is required for installing qubes-file-trust
 
 `gvfs-bin` is required for custom emblem support in Nautilus
 
