@@ -2,7 +2,7 @@ language: python
 python:
     - 3.6
 install:
-    - sudo apt install python3-pyxattr gvfs-bin libffi-dev g++ pandoc
+    - sudo apt install python3-pyxattr gvfs-bin libffi-dev g++ pandoc python-setuptools
     - make build
     - sudo make install EX_SETUP_OPTIONS=--install-layout=deb
 script: make test

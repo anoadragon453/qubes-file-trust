@@ -25,13 +25,23 @@ Follow the progress [here](https://blog.amorgan.xyz/tag_gsoc-2017.html)!
 
 ## Requirements
 
+Debian:
+```
+# apt install python3-pyxattr gvfs-bin libffi-dev g++ pandoc
+```
+
+Fedora:
+```
+# dnf install python3-pyxattr gvfs libffi-devel gcc-c++ pandoc
+```
+
 `python3-pyxattr` is required for manipulating extended attribute values
 
 `gvfs-bin` is required for custom emblem support in Nautilus
 
 `libffi-dev` for setuptools related install functions(?)
 
-`g++` (`gcc-c++` on fedora) for compilation of qubes-trust-daemon
+`g++` for compilation of qubes-trust-daemon
 
 `pandoc` for building the documentation
 
