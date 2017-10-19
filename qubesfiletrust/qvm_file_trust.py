@@ -252,7 +252,7 @@ def check_file(path, multiple_paths):
         handle_trust(path, multiple_paths, "File", True)
 
     # File is readable, attempt to check trusted status
-    if is_untrusted_xattr(path, orig_perms):
+    if is_untrusted_xattr(path, orig_perms) or is_untrusted_path(path):
         # Print out which paths are untrusted if we're checking multiple paths
         handle_trust(path, multiple_paths, "File", True)
     else:

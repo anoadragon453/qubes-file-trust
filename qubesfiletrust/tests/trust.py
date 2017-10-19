@@ -175,6 +175,7 @@ class TC_00_trust(unittest.TestCase):
         dummy_untrusted_phrase = '.untrusted'
         dummy_file_data = '/home/user/Downloads\n/home/user/QubesIncoming'
 
+        # Check for three phrase and path combos
         handlers = (unittest.mock.mock_open(
                         read_data=dummy_file_data
                         ).return_value,
