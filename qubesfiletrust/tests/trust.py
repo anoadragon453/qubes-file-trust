@@ -35,7 +35,7 @@ user_home = os.path.expanduser('~')
 class TC_00_trust(unittest.TestCase):
 
     @unittest.mock.patch('qubesfiletrust.qvm_file_trust.open', 
-            new_callable=unittest.mock.mock_open())
+            new_callable=unittest.mock.mock_open(), create=True)
     def test_000_retrieve_folders(self, list_mock):
         """Create a mock global and local list and check resulting rules.
         
@@ -74,7 +74,7 @@ class TC_00_trust(unittest.TestCase):
                     '/home/user/my way too long path name with spaces']])
 
     @unittest.mock.patch('qubesfiletrust.qvm_file_trust.open', 
-            new_callable=unittest.mock.mock_open())
+            new_callable=unittest.mock.mock_open(), create=True)
     def test_001_retrieve_folders_override(self, list_mock):
         """Create a mock global and local list and check resulting rules.
         
@@ -129,7 +129,7 @@ class TC_00_trust(unittest.TestCase):
             self.fail('System Exit caught: {}'.format(err))
 
     @unittest.mock.patch('qubesfiletrust.qvm_file_trust.open', 
-            new_callable=unittest.mock.mock_open())
+            new_callable=unittest.mock.mock_open(), create=True)
     def test_020_check_untrusted_path_path_based(self, list_mock):
         """Check if a path is untrusted based on untrusted folders lists"""
         dummy_untrusted_phrase = '.untrusted'
@@ -169,7 +169,7 @@ class TC_00_trust(unittest.TestCase):
             self.assertFalse(test_result)
 
     @unittest.mock.patch('qubesfiletrust.qvm_file_trust.open', 
-            new_callable=unittest.mock.mock_open())
+            new_callable=unittest.mock.mock_open(), create=True)
     def test_021_check_untrusted_path_phrase_based(self, list_mock):
         """Check if path is untrusted based on untrusted phrase"""
         dummy_untrusted_phrase = '.untrusted'
