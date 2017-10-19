@@ -321,8 +321,6 @@ class TC_10_misc(unittest.TestCase):
             sys.stdout = sys.__stdout__
             self.assertEqual(captured_obj.getvalue(), '')
 
-    # TODO: Test that dependencies are installed either in unittest or program
-
 def list_tests():
     return (
             TC_00_trust,

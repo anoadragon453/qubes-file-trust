@@ -4,5 +4,5 @@ python:
 install:
     - sudo apt install python3-pyxattr gvfs-bin libffi-dev g++ pandoc python3-setuptools
     - make build
-    - sudo make install EX_SETUP_OPTIONS=--install-layout=deb
+    - sudo make install EX_SETUP_OPTS=--install-layout=deb
 script: make tests

@@ -1,4 +1,5 @@
 CXXFLAGS = -pthread -Werror -std=c++11 -g -O
+EX_SETUP_OPTS?= --install-layout=deb
 INSTALL_OPTS = -D
 INSTALL = install $(INSTALL_OPTS)
 INSTALL_PROGRAM = $(INSTALL)
